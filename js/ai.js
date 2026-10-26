@@ -139,7 +139,13 @@ Resume cada parte en viñetas cortas separadas por saltos de línea (máximo 4),
       if (!mapa.has(k)) mapa.set(k, { nombre: p.nombre || file.name.replace(/\.[^.]+$/, ''), periodo: p.periodo || '', sesiones: [] });
       mapa.get(k).sesiones.push(...p.sesiones);
     });
-    const planes = [...mapa.values()].map((p) => ({
+    // Si Gemini nombró distinto la misma planeación (fechas que se enciman), se juntan en una sola
+    const rango = (p) => { const f = p.sesiones.map((s) => s.fecha).filter(Boolean).sort(); return [f[0] || '', f[f.length - 1] || '']; };
+    const grupos = [...mapa.values()].sort((x, y) => y.sesiones.length - x.sesiones.length).reduce((acc, p) => {
+      const [i, f] = rango(p); const dest = acc.find((q) => { const [qi, qf] = rango(q); return i && qi && i <= qf && f >= qi; });
+      if (dest) dest.sesiones.push(...p.sesiones); else acc.push(p); return acc;
+    }, []);
+    const planes = grupos.map((p) => ({
       id: WD.uid(), nombre: p.nombre, periodo: p.periodo, archivo: file.name, subida: Date.now(),
       sesiones: p.sesiones.filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.fecha || '')).map((s) => ({
         id: WD.uid(), numero: s.numero || '', fecha: s.fecha, campo: s.campo, proyecto: s.proyecto || '', titulo: s.titulo || '', faseProyecto: s.faseProyecto || '',
