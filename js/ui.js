@@ -258,12 +258,12 @@
         <li>Toca <b>Create API key</b> (Crear clave) y cópiala.</li>
         <li>Regresa aquí y pégala. Yo la reviso solito.</li></ol>
       <a class="btn" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="justify-content:center">Abrir Google AI Studio</a>
-      <input class="in" id="gm-key" placeholder="Pega aquí tu clave (empieza con AIza…)" autocomplete="off">
+      <input class="in" id="gm-key" placeholder="Pega aquí tu clave de Gemini" autocomplete="off">
       <div class="small" id="gm-st" role="status"></div>
       <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cerrarModal">Después</button></div>`);
     const inp = md.querySelector('#gm-key'), st = md.querySelector('#gm-st');
     const probar = async () => {
-      const v = inp.value.trim(); if (!WD.ai.pareceClave(v)) { if (v.length > 10) st.innerHTML = '<span style="color:var(--bad)">Eso no parece una clave. Debe empezar con “AIza”.</span>'; return; }
+      const v = inp.value.trim(); if (!WD.ai.pareceClave(v)) { if (v.length > 10) st.innerHTML = '<span style="color:var(--bad)">Eso no parece una clave completa. Cópiala otra vez desde Google AI Studio.</span>'; return; }
       st.innerHTML = '<span class="spinner"></span> Revisando tu clave…';
       try { await WD.ai.conectar(v); st.innerHTML = '<span style="color:var(--ok)">✓ ¡Listo! Tu Gemini quedó conectado.</span>'; setTimeout(() => { WD.cerrarModal(); WD.refrescar(); WD.toast('Gemini conectado'); }, 900); }
       catch (e) { st.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }

@@ -5,7 +5,7 @@
   const PREFERIDOS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const tieneClave = () => !!(WD.state.ajustes.geminiKey || '').trim();
-  const pareceClave = (s) => /^AIza[0-9A-Za-z_\-]{30,}$/.test(String(s || '').trim());
+  const pareceClave = (s) => /^(AIza[0-9A-Za-z_\-]{30,}|AQ\.[0-9A-Za-z_\-.]{20,}|[0-9A-Za-z_\-.]{35,})$/.test(String(s || '').trim());
 
   // Elige el modelo "flash" más reciente disponible para esa clave
   async function elegirModelo(key) {
@@ -23,7 +23,7 @@
   }
   async function conectar(key) {
     key = String(key || '').trim();
-    if (!pareceClave(key)) throw new Error('Eso no parece una clave de Gemini. Debe empezar con “AIza”.');
+    if (!pareceClave(key)) throw new Error('Eso no parece una clave de Gemini. Cópiala completa desde Google AI Studio.');
     const modelo = await elegirModelo(key);
     WD.state.ajustes.geminiKey = key; WD.state.ajustes.geminiModel = modelo; WD.save({ clave: true });
     return modelo;
