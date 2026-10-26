@@ -8,6 +8,17 @@
   const pareceClave = (s) => /^(AIza[0-9A-Za-z_\-]{30,}|AQ\.[0-9A-Za-z_\-.]{20,}|[0-9A-Za-z_\-.]{35,})$/.test(String(s || '').trim());
 
   // Elige el modelo "flash" más reciente disponible para esa clave
+  // Lista de modelos "flash" disponibles para esa clave, del más nuevo al más viejo (sin versiones de prueba primero)
+  let respaldo = [];
+  async function listarModelos(key) {
+    const r = await fetch(`${BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } });
+    if (!r.ok) throw new Error(r.status === 400 || r.status === 403 ? 'clave' : 'red');
+    const j = await r.json();
+    const nombres = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => m.name.replace('models/', ''));
+    const ver = (n) => parseFloat((n.match(/gemini-([\d.]+)/) || [])[1] || '0');
+    const flash = nombres.filter((n) => /^gemini-[\d.]+-flash(-lite)?$/.test(n)).sort((a, b) => (a.includes('lite') - b.includes('lite')) || ver(b) - ver(a));
+    return flash.length ? flash : PREFERIDOS;
+  }
   async function elegirModelo(key) {
     try {
       const r = await fetch(`${BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } });
@@ -39,11 +50,24 @@
     const llamar = (m) => fetch(`${BASE}/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
     let r = await llamar(modelo);
     if (r.status === 404) { modelo = await elegirModelo(key); WD.state.ajustes.geminiModel = modelo; WD.save(); r = await llamar(modelo); }
+    // Gemini saturado (503/500/429): reintenta y luego prueba con otro modelo disponible
+    if ([429, 500, 503].includes(r.status)) {
+      await new Promise((ok) => setTimeout(ok, 2500)); r = await llamar(modelo);
+      if ([429, 500, 503].includes(r.status)) {
+        if (!respaldo.length) { try { respaldo = await listarModelos(key); } catch (_) { respaldo = PREFERIDOS; } }
+        for (const m of respaldo.filter((x) => x !== modelo).slice(0, 4)) {
+          WD.toast && WD.toast('Gemini está saturado, probando con otro modelo…', 2500);
+          r = await llamar(m);
+          if (r.ok) break;
+          if (![404, 429, 500, 503].includes(r.status)) break;
+        }
+      }
+    }
     if (r.status === 400 && maxTokens > 8192) {
       const t = await r.clone().text();
       if (/max_?output_?tokens|maxOutputTokens/i.test(t)) { body.generationConfig.maxOutputTokens = 8192; r = await llamar(modelo); }
     }
-    if (r.status === 429) throw new Error('Gemini está ocupado por ahora. Espera un minuto y vuelve a intentar.');
+    if ([429, 500, 503].includes(r.status)) throw new Error('Gemini está muy ocupado en este momento. Espera un par de minutos y vuelve a intentar.');
     if (!r.ok) { let msg = ''; try { msg = (await r.json()).error.message; } catch (_) {} throw new Error('Gemini no pudo responder. ' + (msg || `Código ${r.status}.`)); }
     const j = await r.json();
     const txt = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
