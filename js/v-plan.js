@@ -15,6 +15,19 @@
     const seg = document.getElementById('pl-seg'); if (seg) seg.textContent = Math.round((Date.now() - leyendo.t0) / 1000) + ' s';
   }
   async function subir(file) {
+    // Word con el formato de tablas por sesión: se lee directo, al instante y sin IA
+    if (/\.docx$/i.test(file.name)) {
+      try {
+        const planes = await WD.leerPlaneacionDocx(file);
+        if (planes && planes.length) {
+          WD.state.planeaciones.push(...planes); crearActividades(planes); WD.save(); WD.refrescar();
+          const n = planes.reduce((k, p) => k + p.sesiones.length, 0);
+          const porCampo = WD.CAMPOS.map((c) => `${WD.CAMPO_CORTO[c]} ${planes[0].sesiones.filter((s) => s.campo === c).length}`).join(', ');
+          WD.petDecir(`¡Listo! Leí tu Word al instante: ${n} sesiones (${porCampo}), con inicio, desarrollo, cierre y su instrumento de evaluación.`, 'inicio');
+          return;
+        }
+      } catch (e) { console.warn('No se pudo leer el Word directo', e); }
+    }
     if (!WD.requiereIA()) return;
     if (leyendo) { WD.toast('Ya estoy leyendo una planeación. Espera a que termine.'); return; }
     leyendo = { nombre: file.name, t0: Date.now(), avance: {} }; WD.refrescar();

@@ -131,6 +131,18 @@ Resume cada parte en viñetas cortas separadas por saltos de línea (máximo 4),
         return planes.map((p) => ({ ...p, sesiones: (p.sesiones || []).map((x) => ({ ...x, campo })) }));
       } catch (e) { avance(campo, 'error', e.message); return { error: e.message, campo }; }
     }));
+    // Los campos que fallaron (Gemini saturado) se vuelven a intentar uno por uno
+    for (let i = 0; i < porCampo.length; i++) {
+      const x = porCampo[i]; if (!x || !x.error) continue;
+      avance(x.campo, 'leyendo');
+      try {
+        const out = await generar(conDocumento(doc, PROMPT_INDICE(x.campo, anio)), { json: true, temperatura: 0.1, maxTokens: 8192, espera: 120000 });
+        const planes = Array.isArray(out) ? out : (out.planeaciones || []);
+        const n = planes.reduce((k, p) => k + (p.sesiones || []).length, 0);
+        avance(x.campo, n ? 'ok' : 'vacio', n);
+        porCampo[i] = planes.map((p) => ({ ...p, sesiones: (p.sesiones || []).map((s) => ({ ...s, campo: x.campo })) }));
+      } catch (e) { avance(x.campo, 'error', e.message); }
+    }
     const errores = porCampo.filter((x) => x && x.error);
     // Juntar por planeación (mismo nombre o mismo periodo)
     const mapa = new Map();
