@@ -91,13 +91,30 @@
     WD.abrirDrawer(ses.titulo || ses.proyecto || 'Sesión', `
       <div class="row"><span class="pill acc">${esc(WD.CAMPO_CORTO[ses.campo])}</span>${ses.faseProyecto ? `<span class="pill">${esc(ses.faseProyecto)}</span>` : ''}${ses.paginas ? `<span class="pill">Págs. ${esc(ses.paginas)}</span>` : ''}${ses.pda ? `<span class="pill">${esc(ses.pda)}</span>` : ''}</div>
       ${ses.proyecto ? `<p class="small muted">Proyecto: ${esc(ses.proyecto)} · ${esc(plan.nombre)}</p>` : ''}
+      ${ses.detalle === false ? `<div id="ses-detalle" class="row"><span class="spinner"></span><span class="small muted">Leyendo inicio, desarrollo y cierre de esta sesión…</span></div>` : ''}
       ${bloque('Inicio', ses.inicio)}${bloque('Desarrollo', ses.desarrollo)}${bloque('Cierre', ses.cierre)}
       ${bloque('Recursos', ses.recursos)}${bloque('Evidencias', ses.evidencias)}${bloque('Ajustes razonables', ses.ajustes)}
       <div class="card flat" style="background:var(--surface-2);border:0"><div class="stack"><div class="label">Qué se evalúa hoy · ${ses.instrumento === 'rubrica' ? 'Rúbrica' : 'Lista de cotejo'}</div>
         ${(ses.criterios || []).length ? `<ul class="small" style="margin:0;padding-left:18px">${ses.criterios.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '<p class="small muted">Esta sesión no trae criterios.</p>'}
         <button class="btn pri" data-act="evaluarSesion" data-id="${ses.id}" style="justify-self:start">Evaluar con mi grupo</button></div></div>`,
       null, `${esc(WD.fechaLarga(ses.fecha))}`);
+    if (ses.detalle === false) cargarDetalle(ses, plan, el);
   };
+  // El detalle de cada sesión se lee solo cuando se abre (más rápido al subir la planeación)
+  const cargando = new Set();
+  async function cargarDetalle(ses, plan, el) {
+    if (cargando.has(ses.id)) return;
+    const box = () => document.getElementById('ses-detalle');
+    const doc = plan.docId ? await WD.kv.get('plandoc:' + plan.docId) : null;
+    if (!doc) { if (box()) box().innerHTML = '<span class="small muted">El detalle no está en este dispositivo. Vuelve a subir la planeación desde aquí para verlo.</span>'; return; }
+    if (!WD.ai.tieneClave()) { if (box()) box().innerHTML = '<button class="btn sm" data-act="conectarGemini">Conecta tu Gemini para ver el detalle</button>'; return; }
+    cargando.add(ses.id);
+    try {
+      Object.assign(ses, await WD.ai.detalleSesion(doc, ses), { detalle: true }); WD.save();
+      if (box()) WD.act.verSesion(el);
+    } catch (e) { if (box()) box().innerHTML = `<span class="small muted">${esc(e.message)}</span> <button class="btn sm" data-act="verSesion" data-id="${ses.id}">Reintentar</button>`; }
+    cargando.delete(ses.id);
+  }
   WD.act.evaluarSesion = (el) => {
     let ses, plan; WD.state.planeaciones.forEach((p) => p.sesiones.forEach((s) => { if (s.id === el.dataset.id) { ses = s; plan = p; } }));
     if (!WD.state.alumnos.length) { WD.toast('Primero carga a tus alumnos en Mi grupo.'); return; }

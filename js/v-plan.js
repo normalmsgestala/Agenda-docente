@@ -7,27 +7,39 @@
   function crearActividades(planes) {
     planes.forEach((p) => p.sesiones.forEach((s) => { if ((s.criterios || []).length) WD.actividadDeSesion(s, p); }));
   }
+  // Lectura en segundo plano: se puede seguir usando la app; la mascota avisa al terminar
+  const ESTADO_TXT = { leyendo: '…', ok: '✓', vacio: '—', error: '✕' };
+  function pintarAvance() {
+    const box = document.getElementById('pl-avance'); if (!box || !leyendo) return;
+    box.innerHTML = WD.CAMPOS.map((c) => { const st = leyendo.avance[c] || 'leyendo'; return `<span class="pill ${st === 'ok' ? 'ok' : st === 'error' ? 'bad' : ''}">${st === 'leyendo' ? '<span class="spinner" style="width:10px;height:10px"></span>' : ESTADO_TXT[st]} ${WD.CAMPO_CORTO[c]}</span>`; }).join('');
+    const seg = document.getElementById('pl-seg'); if (seg) seg.textContent = Math.round((Date.now() - leyendo.t0) / 1000) + ' s';
+  }
   async function subir(file) {
     if (!WD.requiereIA()) return;
-    leyendo = file.name; WD.refrescar();
-    const t0 = Date.now(); const reloj = setInterval(() => { const el = document.getElementById('pl-seg'); if (el) el.textContent = Math.round((Date.now() - t0) / 1000) + ' s'; else if (!leyendo) clearInterval(reloj); }, 1000);
+    if (leyendo) { WD.toast('Ya estoy leyendo una planeación. Espera a que termine.'); return; }
+    leyendo = { nombre: file.name, t0: Date.now(), avance: {} }; WD.refrescar();
+    WD.toast('Estoy leyendo tu planeación. Puedes seguir usando la app, yo te aviso.', 4000);
+    const reloj = setInterval(pintarAvance, 1000);
     try {
-      const planes = await WD.ai.leerPlaneacion(file);
-      leyendo = false; WD.refrescar();
-      const total = planes.reduce((s, p) => s + p.sesiones.length, 0);
-      const fechas = planes.flatMap((p) => p.sesiones.map((s) => s.fecha)).sort();
-      const m = WD.modal(`<h2>Encontré ${planes.length} planeaci${planes.length === 1 ? 'ón' : 'ones'} con ${total} sesiones</h2>
-        <p class="small muted">Del ${esc(WD.fechaLarga(fechas[0]))} al ${esc(WD.fechaLarga(fechas[fechas.length - 1]))}. Cada sesión se acomoda en su día y se crea su lista de evaluación.</p>
-        <div class="tbl-wrap" style="max-height:320px;overflow:auto"><table class="tbl"><thead><tr><th>Fecha</th><th>Campo</th><th>Sesión</th><th class="r">Criterios</th></tr></thead><tbody>${planes.flatMap((p) => p.sesiones).sort((a, b) => a.fecha.localeCompare(b.fecha)).map((s) => `<tr><td class="num">${esc(s.fecha)}</td><td>${esc(WD.CAMPO_CORTO[s.campo])}</td><td style="white-space:normal">${esc(s.titulo || s.proyecto)}</td><td class="r">${(s.criterios || []).length}</td></tr>`).join('')}</tbody></table></div>
-        <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cerrarModal">Cancelar</button><button class="btn pri" id="pl-ok">Acomodar en mi agenda</button></div>`);
-      m.querySelector('#pl-ok').onclick = () => { WD.state.planeaciones.push(...planes); crearActividades(planes); WD.save(); WD.cerrarModal(); WD.refrescar(); WD.toast('Planeación acomodada en tu agenda'); };
-    } catch (e) { leyendo = false; WD.refrescar(); WD.toast(e.message, 5000); }
+      const { planes, doc, errores } = await WD.ai.leerPlaneacion(file, (campo, st) => { leyendo.avance[campo] = st; pintarAvance(); });
+      const docId = WD.uid(); await WD.kv.set('plandoc:' + docId, doc);
+      planes.forEach((p) => { p.docId = docId; });
+      WD.state.planeaciones.push(...planes); crearActividades(planes); WD.save();
+      const total = planes.reduce((k, p) => k + p.sesiones.length, 0); const seg = Math.round((Date.now() - leyendo.t0) / 1000);
+      leyendo = false; clearInterval(reloj);
+      if (['planeacion', 'inicio', 'horario'].includes(WD.ruta())) WD.refrescar();
+      const faltan = errores.length ? ` No pude leer ${errores.map((c) => WD.CAMPO_CORTO[c]).join(', ')}; vuelve a subir el archivo para intentarlo.` : '';
+      WD.petDecir(`¡Listo! Acomodé ${total} sesiones de “${file.name}” en tu agenda en ${seg} segundos.${faltan} Toca una clase en Inicio para ver su detalle.`, 'inicio');
+    } catch (e) { leyendo = false; clearInterval(reloj); WD.refrescar(); WD.petDecir('No pude leer la planeación. ' + e.message); }
   }
   WD.act.subirPlan = () => { const i = document.getElementById('in-plan'); i.value = ''; i.click(); };
   WD.act.verPlan = (el) => { abierta = abierta === el.dataset.id ? null : el.dataset.id; WD.refrescar(); };
   WD.act.borrarPlan = async (el) => {
     if (!(await WD.confirmar('Quitar planeación', 'Se quitan sus sesiones de la agenda. Las calificaciones que ya capturaste se conservan en Evaluación.', 'Quitar', true))) return;
-    WD.state.planeaciones = WD.state.planeaciones.filter((p) => p.id !== el.dataset.id); WD.save(); WD.refrescar();
+    const p = WD.state.planeaciones.find((x) => x.id === el.dataset.id);
+    WD.state.planeaciones = WD.state.planeaciones.filter((x) => x.id !== el.dataset.id);
+    if (p && p.docId && !WD.state.planeaciones.some((x) => x.docId === p.docId)) WD.kv.del('plandoc:' + p.docId);
+    WD.save(); WD.refrescar();
   };
   WD.act.planEjemplo = () => {
     const lun = WD.lunesDe(new Date()); const d = (k) => WD.iso(WD.addDays(lun, k));
@@ -51,8 +63,8 @@
       <div class="card"><div class="row" style="gap:16px;align-items:flex-start">
         <div style="flex:1;min-width:240px" class="stack"><h2>Subir planeación</h2><p class="small muted">PDF o Word. Puede ser una sola (una quincena) o varias juntas (todo el trimestre o el ciclo).</p>
           ${WD.ai.tieneClave() ? '' : '<p class="note small">Para leer planeaciones se usa tu Gemini. Se conecta una sola vez.</p>'}</div>
-        <div class="stack" style="justify-items:start">${leyendo ? `<div class="row"><span class="spinner"></span><span class="small">Leyendo “${esc(leyendo)}”… <b id="pl-seg">0 s</b></span></div>` : `<button class="btn pri" data-act="subirPlan">${WD.icon('subir')} Elegir archivo</button>`}
-          ${ps.some((p) => p.ejemplo) ? '' : `<button class="btn ghost sm" data-act="planEjemplo">Ver un ejemplo en esta semana</button>`}</div>
+        <div class="stack" style="justify-items:start">${leyendo ? `<div class="stack" style="gap:6px"><div class="row"><span class="small">Leyendo “${esc(leyendo.nombre)}” · <b id="pl-seg">${Math.round((Date.now() - leyendo.t0) / 1000)} s</b></span></div><div class="row" id="pl-avance"></div><span class="tiny muted">Puedes seguir usando la app; te aviso al terminar.</span></div>` : `<button class="btn pri" data-act="subirPlan">${WD.icon('subir')} Elegir archivo</button>`}
+          ${ps.some((p) => p.ejemplo) || leyendo ? '' : `<button class="btn ghost sm" data-act="planEjemplo">Ver un ejemplo en esta semana</button>`}</div>
         <input type="file" id="in-plan" accept=".pdf,.docx,application/pdf" hidden></div></div>
       ${ps.length ? `<div class="stack">${ps.map((p) => { const f = p.sesiones.map((s) => s.fecha).sort(); const porCampo = WD.CAMPOS.map((c) => [c, p.sesiones.filter((s) => s.campo === c).length]).filter((x) => x[1]); return `<div class="card">
           <div class="card-h"><div class="grow"><h3>${esc(p.nombre)} ${p.ejemplo ? '<span class="pill warn">ejemplo</span>' : ''}</h3><div class="small muted">${esc(p.periodo || '')} · ${p.sesiones.length} sesiones · ${f.length ? `${esc(f[0])} a ${esc(f[f.length - 1])}` : ''}</div></div>
@@ -62,7 +74,7 @@
         </div>`; }).join('')}</div>`
       : `<div class="empty"><h3>Aún no hay planeaciones</h3><p class="small">Cuando subas una, tus clases aparecen en Inicio con su hora y su lista de evaluación.</p></div>`}`;
     },
-    after(v) { v.querySelector('#in-plan')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) subir(f); }); },
+    after(v) { v.querySelector('#in-plan')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) subir(f); }); pintarAvance(); },
   };
 
   /* ---------- horario ---------- */

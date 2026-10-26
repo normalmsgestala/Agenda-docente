@@ -221,6 +221,14 @@
     const b = document.getElementById('pet-bubble'); if (b) b.textContent = saludo === true ? `¡Hola, ${WD.state.docente.nombre.split(' ')[0]}! Soy ${WD.mascota().nombre}. Si no sabes algo, aquí abajo me preguntas.` : WD.animoAleatorio();
     setTimeout(() => document.getElementById('pet-q')?.focus(), 50);
   };
+  // La mascota avisa algo (por ejemplo, que terminó de leer la planeación)
+  WD.petDecir = (texto, ir) => {
+    petHist.push({ de: 'el', texto, ir: ir || null });
+    const body = document.getElementById('pet-body');
+    if (body) { body.insertAdjacentHTML('beforeend', `<div class="msg el">${esc(texto)}</div>${ir ? `<button class="hit" data-act="ir" data-to="${ir}">Ir a ${esc(WD.views[ir]?.titulo || ir)} <span class="k">abrir</span></button>` : ''}`); }
+    WD.petAbrir(); const b = document.getElementById('pet-bubble'); if (b) b.textContent = 'Te dejo un aviso aquí abajo.';
+    const pb = document.getElementById('pet-body'); if (pb) pb.scrollTop = pb.scrollHeight;
+  };
   WD.petCerrar = () => { petAbierto = false; const p = document.getElementById('pet-panel'); if (p) p.hidden = true; document.querySelector('.pet-btn')?.setAttribute('aria-expanded', 'false'); };
   WD.act.petToggle = () => (petAbierto ? WD.petCerrar() : WD.petAbrir());
   WD.act.petCerrar = WD.petCerrar;

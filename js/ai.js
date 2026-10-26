@@ -95,44 +95,64 @@
   }
 
   /* ---------- planeaciones ---------- */
-  const PROMPT_PLAN = (anioRef) => `Eres un asistente que lee planeaciones didácticas de primaria de México (Nueva Escuela Mexicana).
-El documento puede contener UNA planeación o VARIAS juntas (un trimestre o todo el ciclo). Extrae TODAS las sesiones de clase.
-Devuelve SOLO JSON con esta forma:
-{"planeaciones":[{"nombre":"Planeación 15","periodo":"Del 16 al 27 de marzo de 2026","grado":"1º","sesiones":[
- {"numero":1,"fecha":"2026-03-17","campo":"Lenguajes","proyecto":"¡Arriba la vida, abajo el peligro!","titulo":"frase corta de lo que se hace","faseProyecto":"Identificamos","paginas":"70-72","pda":"C1 (P1, P2)","inicio":"…","desarrollo":"…","cierre":"…","recursos":"…","evidencias":"…","instrumento":"rubrica|cotejo","criterios":["criterio observable 1","criterio 2"],"ajustes":"…"}]}]}
-Reglas:
-- "campo" debe ser exactamente uno de: "Lenguajes", "Saberes y pensamiento científico", "Ética, naturaleza y sociedades", "De lo humano y lo comunitario".
-- "fecha" en formato AAAA-MM-DD. Si la sesión solo dice "Martes 17", deduce mes y año del periodo de esa planeación. Año de referencia: ${anioRef}.
-- "criterios": toma los rasgos del apartado Evaluación de la sesión (frases observables, máximo 6). Si no hay, propón 3 a partir de las evidencias y el PDA.
-- "instrumento": "rubrica" si la planeación indica rúbrica para ese campo; si no, "cotejo".
-- Resume inicio, desarrollo y cierre en viñetas cortas separadas por saltos de línea (máximo 3 líneas cortas cada uno), sin inventar actividades.
-- No incluyas nombres de alumnos.`;
+  // Paso rápido: por cada campo formativo, solo lo que necesita la agenda (fecha, título y qué se evalúa)
+  const PROMPT_INDICE = (campo, anioRef) => `Lee planeaciones didácticas de primaria de México (Nueva Escuela Mexicana). El documento puede traer UNA o VARIAS planeaciones juntas.
+Extrae SOLO las sesiones del campo formativo "${campo}". Ignora los demás campos.
+Devuelve SOLO JSON, sin texto extra:
+{"planeaciones":[{"nombre":"Planeación 15","periodo":"Del 16 al 27 de marzo de 2026","sesiones":[{"numero":1,"fecha":"2026-03-17","titulo":"frase corta (máx. 10 palabras) de lo que se hace","proyecto":"nombre del proyecto","faseProyecto":"Identificamos","paginas":"70-72","pda":"C1 (P1, P2)","instrumento":"rubrica|cotejo","criterios":["rasgo observable","..."]}]}]}
+Reglas: "fecha" en AAAA-MM-DD; si dice "Martes 17", deduce mes y año del periodo de esa planeación (año de referencia ${anioRef}). "criterios": del apartado Evaluación de la sesión, máximo 5 frases cortas; si no hay, 3 a partir de evidencias y PDA. "instrumento": "rubrica" si la planeación indica rúbrica para ese campo, si no "cotejo". No copies inicio, desarrollo ni cierre. Sin nombres de alumnos.`;
+  // Paso detallado (solo cuando se abre una sesión)
+  const PROMPT_DETALLE = (s) => `En el documento de planeaciones, busca la sesión del campo "${s.campo}" con fecha ${s.fecha}${s.numero ? ` (sesión ${s.numero})` : ''}${s.titulo ? `, sobre: ${s.titulo}` : ''}.
+Devuelve SOLO JSON: {"inicio":"…","desarrollo":"…","cierre":"…","recursos":"…","evidencias":"…","ajustes":"…"}
+Resume cada parte en viñetas cortas separadas por saltos de línea (máximo 4), sin inventar. Si algo no aparece, deja "".`;
 
-  async function leerPlaneacion(file) {
-    const anio = new Date().getFullYear();
-    let parts;
+  async function partesDocumento(file) {
     if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
       if (file.size > 19 * 1024 * 1024) throw new Error('El PDF pesa más de 19 MB. Divídelo en partes más pequeñas.');
-      const data = (await WD.fileToDataURL(file)).split(',')[1];
-      parts = [{ inline_data: { mime_type: 'application/pdf', data } }, { text: PROMPT_PLAN(anio) }];
-    } else if (/\.docx$/i.test(file.name)) {
-      const txt = await WD.docxText(file);
-      parts = [{ text: PROMPT_PLAN(anio) + '\n\nDOCUMENTO:\n' + anonimizar(txt).texto }];
-    } else if (/\.(txt|md)$/i.test(file.name)) {
-      parts = [{ text: PROMPT_PLAN(anio) + '\n\nDOCUMENTO:\n' + anonimizar(await file.text()).texto }];
-    } else throw new Error('Sube la planeación en PDF o Word (.docx).');
-    const out = await generar(parts, { json: true, temperatura: 0.1, maxTokens: 65536, espera: 150000 });
-    const planes = Array.isArray(out) ? out : (out.planeaciones || []);
-    if (!planes.length) throw new Error('No encontré sesiones en el documento.');
-    return planes.map((p) => ({
-      id: WD.uid(), nombre: p.nombre || file.name.replace(/\.[^.]+$/, ''), periodo: p.periodo || '', grado: p.grado || '', archivo: file.name, subida: Date.now(),
-      sesiones: (p.sesiones || []).filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.fecha || '')).map((s) => ({
-        id: WD.uid(), numero: s.numero || '', fecha: s.fecha, campo: WD.CAMPOS.includes(s.campo) ? s.campo : (WD.CAMPOS.find((c) => WD.norm(c).startsWith(WD.norm(s.campo).slice(0, 5))) || WD.CAMPOS[0]),
-        proyecto: s.proyecto || '', titulo: s.titulo || '', faseProyecto: s.faseProyecto || '', paginas: s.paginas || '', pda: s.pda || '',
-        inicio: s.inicio || '', desarrollo: s.desarrollo || '', cierre: s.cierre || '', recursos: s.recursos || '', evidencias: s.evidencias || '',
-        instrumento: s.instrumento === 'rubrica' ? 'rubrica' : 'cotejo', criterios: Array.isArray(s.criterios) ? s.criterios.slice(0, 8) : [], ajustes: s.ajustes || '',
-      })),
+      return { tipo: 'pdf', data: (await WD.fileToDataURL(file)).split(',')[1] };
+    }
+    if (/\.docx$/i.test(file.name)) return { tipo: 'texto', data: anonimizar(await WD.docxText(file)).texto };
+    if (/\.(txt|md)$/i.test(file.name)) return { tipo: 'texto', data: anonimizar(await file.text()).texto };
+    throw new Error('Sube la planeación en PDF o Word (.docx).');
+  }
+  const conDocumento = (doc, prompt) => doc.tipo === 'pdf' ? [{ inline_data: { mime_type: 'application/pdf', data: doc.data } }, { text: prompt }] : [{ text: prompt + '\n\nDOCUMENTO:\n' + doc.data }];
+
+  // Lee la planeación en 4 partes al mismo tiempo (una por campo). avance(campo, 'leyendo'|'ok'|'vacio'|'error', mensaje)
+  async function leerPlaneacion(file, avance = () => {}) {
+    const anio = new Date().getFullYear();
+    const doc = await partesDocumento(file);
+    const porCampo = await Promise.all(WD.CAMPOS.map(async (campo) => {
+      avance(campo, 'leyendo');
+      try {
+        const out = await generar(conDocumento(doc, PROMPT_INDICE(campo, anio)), { json: true, temperatura: 0.1, maxTokens: 8192, espera: 120000 });
+        const planes = Array.isArray(out) ? out : (out.planeaciones || []);
+        const n = planes.reduce((k, p) => k + (p.sesiones || []).length, 0);
+        avance(campo, n ? 'ok' : 'vacio', n);
+        return planes.map((p) => ({ ...p, sesiones: (p.sesiones || []).map((x) => ({ ...x, campo })) }));
+      } catch (e) { avance(campo, 'error', e.message); return { error: e.message, campo }; }
+    }));
+    const errores = porCampo.filter((x) => x && x.error);
+    // Juntar por planeación (mismo nombre o mismo periodo)
+    const mapa = new Map();
+    porCampo.filter(Array.isArray).flat().forEach((p) => {
+      const k = WD.norm(p.nombre || p.periodo || 'planeación');
+      if (!mapa.has(k)) mapa.set(k, { nombre: p.nombre || file.name.replace(/\.[^.]+$/, ''), periodo: p.periodo || '', sesiones: [] });
+      mapa.get(k).sesiones.push(...p.sesiones);
+    });
+    const planes = [...mapa.values()].map((p) => ({
+      id: WD.uid(), nombre: p.nombre, periodo: p.periodo, archivo: file.name, subida: Date.now(),
+      sesiones: p.sesiones.filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.fecha || '')).map((s) => ({
+        id: WD.uid(), numero: s.numero || '', fecha: s.fecha, campo: s.campo, proyecto: s.proyecto || '', titulo: s.titulo || '', faseProyecto: s.faseProyecto || '',
+        paginas: s.paginas || '', pda: s.pda || '', instrumento: s.instrumento === 'rubrica' ? 'rubrica' : 'cotejo', criterios: Array.isArray(s.criterios) ? s.criterios.slice(0, 8) : [],
+        inicio: '', desarrollo: '', cierre: '', recursos: '', evidencias: '', ajustes: '', detalle: false,
+      })).sort((a, b) => a.fecha.localeCompare(b.fecha)),
     })).filter((p) => p.sesiones.length);
+    if (!planes.length) throw new Error(errores.length ? errores[0].error : 'No encontré sesiones en el documento.');
+    return { planes, doc, errores: errores.map((e) => e.campo) };
+  }
+  async function detalleSesion(doc, s) {
+    const out = await generar(conDocumento(doc, PROMPT_DETALLE(s)), { json: true, temperatura: 0.1, maxTokens: 4096, espera: 90000 });
+    return { inicio: out.inicio || '', desarrollo: out.desarrollo || '', cierre: out.cierre || '', recursos: out.recursos || '', evidencias: out.evidencias || '', ajustes: out.ajustes || '' };
   }
 
   /* ---------- evaluación con foto ---------- */
@@ -182,5 +202,5 @@ ${contexto}`;
     return generar(parts, { sistema, temperatura: 0.7, maxTokens: 1024 });
   }
 
-  WD.ai = { tieneClave, pareceClave, conectar, generar, anonimizar, leerPlaneacion, evaluarFoto, redactarIncidencia, preguntarMascota, AYUDA_APP };
+  WD.ai = { tieneClave, pareceClave, conectar, generar, anonimizar, leerPlaneacion, detalleSesion, evaluarFoto, redactarIncidencia, preguntarMascota, AYUDA_APP };
 })(window.WD);
