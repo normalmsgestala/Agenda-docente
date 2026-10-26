@@ -3,7 +3,8 @@
   'use strict';
   async function arrancar() {
     try { await WD.load(); } catch (e) { console.error(e); }
-    WD.google.onCambio(() => { if (WD.state.docente.nombre) WD.refrescar(); });
+    WD.google.onCambio(() => { if (WD.state.docente.nombre && WD.google.estado.modo === 'google') WD.refrescar(); });
+    if (WD.google.configurado()) { try { await WD.google.restaurarSesion(); } catch (e) { console.warn(e); } }
     WD.render();
     if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => WD.aplicarTema());
     if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|claudeusercontent/.test(location.host)) {

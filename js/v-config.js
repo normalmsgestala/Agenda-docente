@@ -52,7 +52,7 @@
     inp.addEventListener('input', () => { go.disabled = inp.value.trim().toUpperCase() !== 'BORRAR'; });
     go.onclick = async () => { await WD.borrarTodo(); respaldoHecho = false; WD.cerrarModal(); WD.ir('inicio'); WD.toast('Listo. Empieza tu nuevo ciclo.'); };
   };
-  WD.act.googleSalir = () => { WD.google.cerrarSesion(); WD.refrescar(); };
+  WD.act.googleSalir = async () => { if (!(await WD.confirmar('Cerrar sesión', 'Tus datos se quedan guardados en tu Drive. Para volver a entrar te pedirá tu cuenta de Google.', 'Cerrar sesión'))) return; WD.google.cerrarSesion(); };
   WD.views.ajustes = {
     titulo: 'Ajustes',
     render() {
@@ -62,7 +62,7 @@
         <div class="card stack"><h2>Tú</h2><label class="field"><span>Tu nombre (aparece en “Agenda Maestro”)</span><input class="in" data-bind="docente.nombre" data-rerender value="${esc(WD.state.docente.nombre)}"></label>
           <div class="label" style="margin-top:6px">Apariencia</div><div class="tabs">${[['auto', 'Automático'], ['claro', 'Claro'], ['oscuro', 'Oscuro']].map(([t, n]) => `<button class="${a.tema === t ? 'on' : ''}" data-act="tema" data-t="${t}">${n}</button>`).join('')}</div></div>
         <div class="card stack"><h2>Tu cuenta de Google</h2>
-          ${g.modo === 'google' ? `<p class="small">Conectado como <b>${esc(g.usuario?.correo || '')}</b>. Todo se guarda en la carpeta “Web Docente” de tu Drive.</p><button class="btn" data-act="googleSalir" style="justify-self:start">Cerrar sesión</button>`
+          ${g.modo === 'google' ? `<p class="small">Conectado como <b>${esc(g.usuario?.correo || '')}</b>. Todo se guarda en la carpeta “Web Docente” de tu Drive.</p><button class="btn" data-act="googleSalir" style="justify-self:start">Cerrar sesión</button><p class="tiny muted">Al cerrar sesión, la próxima vez te pedirá entrar con Google.</p>`
             : WD.google.configurado() ? `<p class="small muted">Entra con Google para guardar todo en tu Drive y enviar reportes desde tu Gmail.</p><button class="btn pri" data-act="entrarGoogle" style="justify-self:start">Entrar con Google</button>`
             : `<p class="small muted">Por ahora todo se guarda en este dispositivo. El guardado en Google Drive se activa cuando la app tenga su ID de Google (paso de instalación).</p>`}</div>
       </div>

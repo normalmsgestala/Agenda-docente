@@ -26,12 +26,23 @@
       try { await cargarGIS(); } catch (e) { return rej(e); }
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: WD.CONFIG.googleClientId, scope: SCOPES, hint: WD.state.docente.correo || undefined,
-        callback: (r) => { if (r.error) return rej(new Error('Google no dio acceso: ' + r.error)); token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) - 60) * 1000; res(token); },
+        callback: (r) => { if (r.error) return rej(new Error('Google no dio acceso: ' + r.error)); token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) - 60) * 1000; guardarToken(); res(token); },
         error_callback: (e) => rej(new Error(e && e.type === 'popup_closed' ? 'Se cerró la ventana de Google antes de terminar.' : 'No se pudo iniciar sesión con Google.')),
       });
       tokenClient.requestAccessToken({ prompt });
     });
   }
+  const guardarToken = () => WD.kv.set('sesion-google', { token, exp: tokenExp, usuario: estado.usuario || null });
+  // Al abrir la app: si la sesión de Google sigue vigente, entra directo
+  async function restaurarSesion() {
+    const s = await WD.kv.get('sesion-google');
+    if (!s || !s.token || !s.usuario || !(s.exp > Date.now())) return false;
+    if (WD.state.docente.correo && s.usuario.correo !== WD.state.docente.correo) return false;
+    token = s.token; tokenExp = s.exp; estado.modo = 'google'; estado.usuario = s.usuario; estado.sync = 'guardando';
+    sincronizar().then(() => { estado.sync = estado.sync === 'guardando' ? 'guardado' : estado.sync; emit(); }).catch((e) => { estado.sync = 'pendiente'; estado.error = e.message; emit(); });
+    return true;
+  }
+  const capitalizar = (s) => String(s || '').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
   async function tok() { if (token && Date.now() < tokenExp) return token; return pedirToken(''); }
   async function api(url, opts = {}) {
     const t = await tok();
@@ -93,16 +104,22 @@
     const r = await api(`${DRIVE}/files/${f[0].id}?alt=media`); return r.ok ? r.json() : null;
   }
 
-  async function iniciarSesion() {
+  async function iniciarSesion(otraCuenta) {
     if (!configurado()) throw new Error('Falta configurar el ID de Google en config.js.');
-    await pedirToken(WD.state.docente.correo ? '' : 'consent');
+    await pedirToken(otraCuenta ? 'select_account' : (WD.state.docente.correo ? '' : 'consent'));
     const u = await (await api('https://www.googleapis.com/oauth2/v3/userinfo')).json();
-    estado.modo = 'google'; estado.usuario = { nombre: u.name, correo: u.email, foto: u.picture };
-    if (!WD.state.docente.nombre) WD.state.docente.nombre = u.name || '';
+    // Otra cuenta en este dispositivo: se limpia lo local y se cargan SUS datos de SU Drive
+    if (WD.state.docente.correo && u.email && WD.state.docente.correo !== u.email) {
+      const tema = WD.state.ajustes.tema; WD.state = WD.blank(); WD.state.ajustes.tema = tema;
+      for (const k of await WD.kv.keys()) if (String(k).startsWith('foto:')) await WD.kv.del(k);
+      carpetaId = archivoId = null;
+    }
+    estado.modo = 'google'; estado.usuario = { nombre: capitalizar(u.name), correo: u.email, foto: u.picture };
+    guardarToken();
     WD.state.docente.correo = u.email || WD.state.docente.correo;
     await sincronizar();
-    try { const c = await leerClave(); if (c && c.geminiKey && !WD.state.ajustes.geminiKey) { WD.state.ajustes.geminiKey = c.geminiKey; WD.state.ajustes.geminiModel = c.modelo || ''; } } catch (_) {}
-    WD.kv.set('sesion-google', { correo: u.email });
+    if (!WD.state.docente.nombre) { WD.state.docente.nombre = capitalizar(u.name) || u.email; WD.save(); }
+    try { const c = await leerClave(); if (c && c.geminiKey && !WD.state.ajustes.geminiKey) { WD.state.ajustes.geminiKey = c.geminiKey; WD.state.ajustes.geminiModel = c.modelo || ''; WD.save({ remoto: true }); } } catch (_) {}
     emit();
     return estado.usuario;
   }
@@ -116,7 +133,7 @@
         const remoto = await r.json();
         if ((remoto.actualizado || 0) > (WD.state.actualizado || 0)) {
           const clave = WD.state.ajustes.geminiKey, modelo = WD.state.ajustes.geminiModel;
-          WD.replaceState(remoto); WD.state.ajustes.geminiKey = clave || WD.state.ajustes.geminiKey; WD.state.ajustes.geminiModel = modelo || WD.state.ajustes.geminiModel;
+          const correo = WD.state.docente.correo; WD.replaceState(remoto); if (!WD.state.docente.correo) WD.state.docente.correo = correo; WD.state.ajustes.geminiKey = clave || WD.state.ajustes.geminiKey; WD.state.ajustes.geminiModel = modelo || WD.state.ajustes.geminiModel;
           estado.sync = 'guardado'; emit(); WD.render && WD.render(); return;
         }
       }
@@ -126,7 +143,7 @@
   function cerrarSesion() {
     if (token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(token, () => {});
     token = null; estado.modo = 'local'; estado.usuario = null; estado.sync = 'sin-conexion'; carpetaId = archivoId = null;
-    WD.kv.del('sesion-google'); emit();
+    WD.kv.del('sesion-google'); WD.sinConexion = false; emit(); WD.render && WD.render();
   }
 
   /* Gmail: envía un correo HTML desde la cuenta del docente */
@@ -156,5 +173,5 @@
   });
   window.addEventListener('online', () => { if (estado.modo === 'google' && estado.sync === 'pendiente') subir(); });
 
-  WD.google = { configurado, iniciarSesion, cerrarSesion, enviarCorreo, subirFoto, estado, onCambio: (f) => cbs.add(f), subir };
+  WD.google = { configurado, iniciarSesion, restaurarSesion, cerrarSesion, enviarCorreo, subirFoto, estado, onCambio: (f) => cbs.add(f), subir };
 })(window.WD);

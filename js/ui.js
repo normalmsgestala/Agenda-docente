@@ -49,6 +49,7 @@
   const root = () => document.getElementById('app');
   WD.render = function () {
     WD.aplicarTema();
+    if (WD.google.configurado() && WD.google.estado.modo !== 'google' && !WD.sinConexion) { root().innerHTML = WD.pantallaLogin(); return; }
     if (!WD.state.docente.nombre) { root().innerHTML = WD.bienvenida(); return; }
     const id = WD.ruta(); const v = WD.views[id];
     const s = WD.google.estado;
@@ -79,6 +80,29 @@
     if (v.after) v.after(document.getElementById('view'));
   };
   WD.refrescar = () => { const y = window.scrollY; WD.render(); window.scrollTo(0, y); };
+
+  /* ---------- inicio de sesión con Google ---------- */
+  WD.pantallaLogin = () => {
+    const correo = WD.state.docente.correo; const nombre = WD.state.docente.nombre;
+    const offline = !navigator.onLine;
+    return `<div class="welcome"><div class="box card">
+      <div class="pets">${Object.values(WD.MASCOTAS).map((m) => m.svg).join('')}</div>
+      <div><div class="k">Agenda Maestro</div><h1>Web Docente</h1></div>
+      <p class="muted">${correo ? `Hola de nuevo${nombre ? ', ' + esc(nombre.split(' ')[0]) : ''}. Entra con tu cuenta para abrir tu agenda.` : 'Entra con tu cuenta de Google. Tu agenda y tus datos se guardan en tu propio Google Drive.'}</p>
+      ${offline ? '<p class="note warn small">No hay internet. Para entrar con Google necesitas conexión.</p>' : ''}
+      <button class="btn pri" data-act="entrarGoogle" style="justify-content:center;padding:12px" ${offline ? 'disabled' : ''}>${correo ? `Continuar como ${esc(correo)}` : 'Iniciar sesión con Google'}</button>
+      ${correo ? `<button class="btn ghost sm" data-act="otraCuenta" style="justify-self:center" ${offline ? 'disabled' : ''}>Usar otra cuenta</button>` : ''}
+      ${offline && correo ? `<button class="btn" data-act="sinInternet" style="justify-content:center">Abrir sin internet (lo guardado en este iPad)</button>` : ''}
+      <p class="tiny faint" style="text-align:center">Cada maestro entra con su propia cuenta. Nadie más ve tus datos.</p>
+    </div></div>`;
+  };
+  WD.act.otraCuenta = async (el) => {
+    el.disabled = true;
+    try { await WD.google.iniciarSesion(true); WD.render(); } catch (e) { WD.toast(e.message); el.disabled = false; }
+  };
+  WD.act.sinInternet = () => { WD.sinConexion = true; WD.render(); };
+  window.addEventListener('online', () => { if (document.querySelector('[data-act=entrarGoogle]')) WD.render(); });
+  window.addEventListener('offline', () => { if (document.querySelector('[data-act=entrarGoogle]')) WD.render(); });
 
   /* ---------- bienvenida ---------- */
   WD.bienvenida = () => `
@@ -117,9 +141,9 @@
 
   WD.act.form_bienvenida = (f) => { const n = f.nombre.value.trim(); if (!n) return; WD.state.docente.nombre = n; WD.save(); WD.render(); setTimeout(() => WD.petAbrir(true), 400); };
   WD.act.entrarGoogle = async (el) => {
-    el.disabled = true; el.innerHTML = '<span class="spinner"></span> Conectando con Google…';
-    try { await WD.google.iniciarSesion(); WD.render(); }
-    catch (e) { WD.toast(e.message); el.disabled = false; el.textContent = 'Entrar con Google'; }
+    const txt = el.textContent; el.disabled = true; el.innerHTML = '<span class="spinner"></span> Abriendo tu agenda…';
+    try { await WD.google.iniciarSesion(); WD.render(); if (WD.ruta() === 'inicio') setTimeout(() => WD.petAbrir && WD.petAbrir(true), 500); }
+    catch (e) { WD.toast(e.message, 4000); el.disabled = false; el.textContent = txt; }
   };
   WD.act.abrirMenu = () => { document.getElementById('side').classList.add('open'); document.getElementById('side-scrim').hidden = false; };
   WD.cerrarMenu = () => { const s = document.getElementById('side'); if (s) { s.classList.remove('open'); document.getElementById('side-scrim').hidden = true; } };
