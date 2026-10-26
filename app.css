@@ -66,6 +66,17 @@ a { color: var(--accent); }
 .card-h { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .card-h .grow { flex: 1; min-width: 0; }
 .grid { display: grid; gap: 16px; }
+.g-cal { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-h { font-size: 11px; text-align: center; color: var(--muted); font-weight: 600; padding: 2px 0; }
+.cal-d { min-height: 78px; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 5px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; min-width: 0; overflow: hidden; }
+.cal-d:hover { border-color: var(--line-2); }
+.cal-d b { font-size: 13px; }
+.cal-d.finde { background: transparent; border-style: dashed; }
+.cal-d.sc { background: var(--surface-2); }
+.cal-d.hoy { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.cal-d .pill { font-size: 10.5px; max-width: 100%; }
+.day.sc { background: var(--surface-2); }
 .g-side { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -251,6 +262,7 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
 }
 
 /* ---------- responsivo ---------- */
+@media (max-width: 1250px) { .g-cal { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1400px) { .home { grid-template-columns: minmax(0, 1fr); } .home > aside .att-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); max-height: none; } }
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); }
@@ -262,7 +274,8 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
   .week { grid-template-columns: minmax(0, 1fr); }
   .day { min-height: 0; }
   .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .g-side { grid-template-columns: minmax(0, 1fr); }
+  .g-side, .g-cal { grid-template-columns: minmax(0, 1fr); }
+  .cal-d { min-height: 56px; }
 }
 @media (max-width: 560px) {
   .g2, .g3, .g4 { grid-template-columns: minmax(0, 1fr); }

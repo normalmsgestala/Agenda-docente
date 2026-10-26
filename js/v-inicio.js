@@ -54,8 +54,10 @@
       const fechaAsis = hoy.getDay() === 0 || hoy.getDay() === 6 ? null : hoyS;
       const week = dias.map((d) => {
         const f = iso(d); const ses = WD.sesionesDe(f).sort((a, b) => WD.CAMPOS.indexOf(a.campo) - WD.CAMPOS.indexOf(b.campo));
-        return `<div class="day ${f === hoyS ? 'hoy' : ''}"><div class="dh"><b>${d.getDate()}</b><span>${WD.DIAS[d.getDay()]}</span>${f === hoyS ? '<span class="pill acc" style="margin-left:auto">Hoy</span>' : ''}</div>
-          ${ses.length ? ses.map((s, i) => { const act = WD.state.actividades.find((a) => a.sesionId === s.id); const cal = act && Object.keys(act.calif || {}).length; return `<button class="ses ${cal ? 'done' : ''}" data-act="verSesion" data-id="${s.id}"><span class="c">${esc(WD.CAMPO_CORTO[s.campo] || s.campo)}${cal ? ' · evaluada' : ''}</span><span class="t">${esc(s.titulo || s.proyecto || 'Sesión ' + s.numero)}</span>${horaDe(i) ? `<span class="h">${horaDe(i)}</span>` : ''}</button>`; }).join('') : `<span class="tiny faint">${hayPlan ? 'Sin sesiones' : ''}</span>`}
+        const evs = WD.eventosDe ? WD.eventosDe(f) : []; const sc = WD.diaSinClases ? WD.diaSinClases(f) : null;
+        const evHTML = evs.filter((e) => e.tipo !== 'efemeride').map((e) => `<button class="ses" data-act="verEvento" data-id="${e.id}" style="border-style:dashed">${WD.chipEvento(e, true)}${sc === e ? '<span class="tiny muted">Sin clases</span>' : ''}</button>`).join('') + evs.filter((e) => e.tipo === 'efemeride').map((e) => WD.chipEvento(e)).join('');
+        return `<div class="day ${f === hoyS ? 'hoy' : ''} ${sc ? 'sc' : ''}"><div class="dh"><b>${d.getDate()}</b><span>${WD.DIAS[d.getDay()]}</span>${f === hoyS ? '<span class="pill acc" style="margin-left:auto">Hoy</span>' : ''}</div>${evHTML}
+          ${ses.length ? ses.map((s, i) => { const act = WD.state.actividades.find((a) => a.sesionId === s.id); const cal = act && Object.keys(act.calif || {}).length; return `<button class="ses ${cal ? 'done' : ''}" data-act="verSesion" data-id="${s.id}"><span class="c">${esc(WD.CAMPO_CORTO[s.campo] || s.campo)}${cal ? ' · evaluada' : ''}</span><span class="t">${esc(s.titulo || s.proyecto || 'Sesión ' + s.numero)}</span>${horaDe(i) ? `<span class="h">${horaDe(i)}</span>` : ''}</button>`; }).join('') : `<span class="tiny faint">${hayPlan && !sc ? 'Sin sesiones' : ''}</span>`}
         </div>`;
       }).join('');
       return `
@@ -75,6 +77,7 @@
           <div class="card-h"><h2 class="grow">Asistencia de hoy</h2><a class="btn sm ghost" href="#asistencia">Ver todo</a></div>
           ${!WD.state.alumnos.length ? `<div class="empty"><p class="small">Carga a tus alumnos para pasar lista con un toque.</p><a class="btn sm" href="#grupo">Ir a Mi grupo</a></div>`
             : !fechaAsis ? `<p class="small muted">Hoy no hay clases. Disfruta tu descanso.</p>`
+            : WD.diaSinClases(fechaAsis) ? `<p class="small muted">Hoy no hay clases: ${esc(WD.diaSinClases(fechaAsis).titulo)}.</p>`
             : `<p class="tiny muted" style="margin-bottom:8px">Todos empiezan con asistencia. Toca para cambiar: A → F → R → J → S.</p><div class="row" id="asist-resumen" style="margin-bottom:10px">${resumenDia(fechaAsis)}</div><div class="att-list">${WD.asistBotones(fechaAsis, true)}</div>`}
         </aside>
       </div>`;

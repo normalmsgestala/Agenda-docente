@@ -203,6 +203,7 @@ Devuelve JSON {"gravedad":"leve|moderada|grave","hechos":"I. Descripción formal
 - Planeación: subir PDF o Word (una o varias planeaciones juntas); la IA acomoda cada sesión en su día y crea la lista de evaluación.
 - Horario: solo se ponen las horas de los bloques y el recreo; los días salen de la planeación.
 - Incidencias: reportes con folio (C conducta, A accidente, B violencia), la IA redacta en formato oficial, se imprime o se envía al tutor.
+- Calendario y CTE: calendario escolar SEP precargado (días sin clases, vacaciones, registro de calificaciones, valor del mes), fechas propias y registro de cada sesión de Consejo Técnico (temas, acuerdos, acciones para el grupo, pendientes) que se imprime.
 - Escuela: datos y logos que llenan todos los formatos.
 - Ajustes: tema claro u oscuro, cambiar de mascota, conectar Gemini, descargar todos los datos en .zip y borrar todo para el nuevo ciclo.`;
   async function preguntarMascota(pregunta, historial = []) {
