@@ -121,7 +121,7 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
 .hello .k { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .hello h1 { font-size: 30px; margin-top: 4px; }
 .home { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
-.week { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .day { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: grid; gap: 8px; align-content: start; min-height: 180px; min-width: 0; }
 .day.hoy { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .day .dh { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
