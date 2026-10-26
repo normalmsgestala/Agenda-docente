@@ -2,9 +2,10 @@
    Necesita un "ID de cliente OAuth" en config.js. Sin él la app funciona en modo local (este dispositivo). */
 (function (WD) {
   'use strict';
-  const SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.send';
+  const SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
   const CARPETA = 'Web Docente';
   const ARCHIVO = 'datos-web-docente.json';
+  const CLAVE = 'config-gemini.json'; // la clave de Gemini del docente, en SU carpeta (solo la app la usa)
   let token = null, tokenExp = 0, tokenClient = null, carpetaId = null, archivoId = null;
   let subiendo = false, pendiente = false, timer = null;
   const estado = { modo: 'local', usuario: null, sync: 'sin-conexion', error: '' };
@@ -94,13 +95,15 @@
     if (pendiente) { pendiente = false; subir(); }
   }
   async function guardarClave(key) {
-    const f = await buscar(`name='clave-gemini.json'`, 'appDataFolder');
+    await asegurarCarpeta();
+    const f = await buscar(`name='${CLAVE}' and '${carpetaId}' in parents and trashed=false`);
     const body = JSON.stringify({ geminiKey: key, modelo: WD.state.ajustes.geminiModel });
     if (f[0]) await api(`${UP}/files/${f[0].id}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body });
-    else await crearArchivo({ name: 'clave-gemini.json', parents: ['appDataFolder'] }, body);
+    else await crearArchivo({ name: CLAVE, parents: [carpetaId] }, body);
   }
   async function leerClave() {
-    const f = await buscar(`name='clave-gemini.json'`, 'appDataFolder'); if (!f[0]) return null;
+    await asegurarCarpeta();
+    const f = await buscar(`name='${CLAVE}' and '${carpetaId}' in parents and trashed=false`); if (!f[0]) return null;
     const r = await api(`${DRIVE}/files/${f[0].id}?alt=media`); return r.ok ? r.json() : null;
   }
 

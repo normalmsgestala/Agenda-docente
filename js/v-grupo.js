@@ -32,7 +32,7 @@
   };
 
   WD.act.subirAlumnos = (el) => { const inp = document.getElementById('in-alumnos'); inp.value = ''; inp.click(); };
-  async function importar(file) {
+  WD.importarAlumnos = async function (file, despues) {
     let rows;
     try { rows = await WD.readSheet(file); } catch (e) { WD.toast(e.message || 'No pude leer el archivo.'); return; }
     const hi = rows.findIndex((r) => r && r.filter((x) => keyDeEncabezado(x)).length >= 2);
@@ -51,9 +51,9 @@
       <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cerrarModal">Cancelar</button><button class="btn pri" id="imp-ok">Guardar alumnos</button></div>`);
     m.querySelector('#imp-ok').onclick = () => {
       nuevos.forEach((a) => { const ex = existentes.get(clave(a)); if (ex) Object.entries(a).forEach(([k, v]) => { if (v) ex[k] = v; }); else WD.state.alumnos.push({ id: WD.uid(), activo: true, ...a }); });
-      WD.save(); WD.cerrarModal(); WD.refrescar(); WD.toast(`${nuevos.length} alumnos guardados`);
+      WD.save(); WD.cerrarModal(); (despues || WD.refrescar)(); WD.toast(`${nuevos.length} alumnos guardados`);
     };
-  }
+  };
   WD.act.nuevoAlumno = () => { const a = { id: WD.uid(), activo: true, num: String(WD.alumnosActivos().length + 1), paterno: '', materno: '', nombres: '' }; WD.state.alumnos.push(a); WD.save(); WD.abrirFicha(a.id, true); };
 
   /* ---------- ficha del alumno ---------- */
@@ -104,6 +104,6 @@
       : `<div class="empty"><h3>Carga a tus alumnos una sola vez</h3><p class="small">1. Descarga la plantilla · 2. Llénala en Excel · 3. Súbela aquí. Aparecerán en asistencia, evaluación, incidencias y todo lo demás.</p><div class="row"><button class="btn" data-act="plantillaAlumnos">${WD.icon('descargar')} Descargar plantilla</button><button class="btn pri" data-act="subirAlumnos">${WD.icon('subir')} Subir Excel</button></div></div>`}
       ${bajas.length ? `<div><button class="btn ghost sm" data-act="toggleBajas">${verBajas ? 'Ocultar' : 'Ver'} alumnos dados de baja (${bajas.length})</button>${verBajas ? `<div class="stack" style="margin-top:8px">${bajas.map((a) => `<div class="row"><span style="flex:1">${esc(WD.nombreLista(a))}</span><button class="btn sm" data-act="reactivar" data-id="${a.id}">Reactivar</button></div>`).join('')}</div>` : ''}</div>` : ''}`;
     },
-    after(v) { v.querySelector('#in-alumnos').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importar(f); }); },
+    after(v) { v.querySelector('#in-alumnos').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) WD.importarAlumnos(f); }); },
   };
 })(window.WD);

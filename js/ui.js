@@ -51,6 +51,7 @@
     WD.aplicarTema();
     if (WD.google.configurado() && WD.google.estado.modo !== 'google' && !WD.sinConexion) { root().innerHTML = WD.pantallaLogin(); return; }
     if (!WD.state.docente.nombre) { root().innerHTML = WD.bienvenida(); return; }
+    if (WD.necesitaAsistente()) { WD.enAsistente = true; WD.repintarAsistente(); return; }
     const id = WD.ruta(); const v = WD.views[id];
     const s = WD.google.estado;
     const syncTxt = s.modo === 'google' ? ({ guardado: 'Guardado en Drive', guardando: 'Guardando en Drive…', pendiente: 'Se guardará al volver internet', 'sin-conexion': 'Conectando…' }[s.sync] || '') : 'Guardado en este dispositivo';
