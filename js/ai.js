@@ -2,7 +2,8 @@
 (function (WD) {
   'use strict';
   const BASE = 'https://generativelanguage.googleapis.com/v1beta';
-  const PREFERIDOS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const RAPIDO = 'gemini-2.5-flash'; // estable, rápido y con buena lectura de PDF
+  const PREFERIDOS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
 
   const tieneClave = () => !!(WD.state.ajustes.geminiKey || '').trim();
   const pareceClave = (s) => /^(AIza[0-9A-Za-z_\-]{30,}|AQ\.[0-9A-Za-z_\-.]{20,}|[0-9A-Za-z_\-.]{35,})$/.test(String(s || '').trim());
@@ -17,7 +18,8 @@
     const nombres = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => m.name.replace('models/', ''));
     const ver = (n) => parseFloat((n.match(/gemini-([\d.]+)/) || [])[1] || '0');
     const flash = nombres.filter((n) => /^gemini-[\d.]+-flash(-lite)?$/.test(n)).sort((a, b) => (a.includes('lite') - b.includes('lite')) || ver(b) - ver(a));
-    return flash.length ? flash : PREFERIDOS;
+    const lista = flash.length ? flash : PREFERIDOS;
+    return lista.includes(RAPIDO) ? [RAPIDO, ...lista.filter((x) => x !== RAPIDO)] : lista;
   }
   async function elegirModelo(key) {
     try {
@@ -26,6 +28,7 @@
       const j = await r.json();
       const nombres = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => m.name.replace('models/', ''));
       const flash = nombres.filter((n) => /^gemini-[\d.]+-flash$/.test(n)).sort((a, b) => parseFloat(b.slice(7)) - parseFloat(a.slice(7)));
+      if (nombres.includes(RAPIDO)) return RAPIDO;
       return flash[0] || nombres.find((n) => n.includes('flash') && !n.includes('lite') && !n.includes('image') && !n.includes('tts')) || PREFERIDOS[0];
     } catch (e) {
       if (e.message === 'clave') throw new Error('La clave no es válida. Cópiala otra vez desde Google AI Studio.');
@@ -41,13 +44,24 @@
   }
 
   // Llamada base. parts: [{text}|{inline_data:{mime_type,data}}]
-  async function generar(parts, { json = false, sistema = '', temperatura = 0.4, maxTokens = 8192 } = {}) {
+  async function generar(parts, { json = false, sistema = '', temperatura = 0.4, maxTokens = 8192, espera = 90000 } = {}) {
     if (!tieneClave()) { const e = new Error('Conecta tu Gemini para usar esta función.'); e.code = 'sin_clave'; throw e; }
-    const key = WD.state.ajustes.geminiKey; let modelo = WD.state.ajustes.geminiModel || PREFERIDOS[0];
+    const key = WD.state.ajustes.geminiKey;
+    // Una sola vez: pasar al modelo Flash rápido
+    if (WD.state.ajustes.modeloRapido !== 2) { try { WD.state.ajustes.geminiModel = await elegirModelo(key); } catch (_) { WD.state.ajustes.geminiModel = RAPIDO; } WD.state.ajustes.modeloRapido = 2; WD.save(); }
+    let modelo = WD.state.ajustes.geminiModel || RAPIDO;
     const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: temperatura, maxOutputTokens: maxTokens } };
     if (json) body.generationConfig.responseMimeType = 'application/json';
     if (sistema) body.systemInstruction = { parts: [{ text: sistema }] };
-    const llamar = (m) => fetch(`${BASE}/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
+    // Sin "pensar" largo en 2.5 Flash: responde mucho más rápido. Si tarda demasiado, se corta y se prueba otro modelo.
+    const llamar = async (m) => {
+      const b = JSON.parse(JSON.stringify(body));
+      if (/^gemini-2\.5-flash/.test(m)) b.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), espera);
+      try { return await fetch(`${BASE}/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(b), signal: ctl.signal }); }
+      catch (e) { return new Response('{"error":{"message":"Tardó demasiado."}}', { status: e.name === 'AbortError' ? 503 : 500 }); }
+      finally { clearTimeout(t); }
+    };
     let r = await llamar(modelo);
     if (r.status === 404) { modelo = await elegirModelo(key); WD.state.ajustes.geminiModel = modelo; WD.save(); r = await llamar(modelo); }
     // Gemini saturado (503/500/429): reintenta y luego prueba con otro modelo disponible
@@ -98,7 +112,7 @@ Reglas:
 - "fecha" en formato AAAA-MM-DD. Si la sesión solo dice "Martes 17", deduce mes y año del periodo de esa planeación. Año de referencia: ${anioRef}.
 - "criterios": toma los rasgos del apartado Evaluación de la sesión (frases observables, máximo 6). Si no hay, propón 3 a partir de las evidencias y el PDA.
 - "instrumento": "rubrica" si la planeación indica rúbrica para ese campo; si no, "cotejo".
-- Resume inicio, desarrollo y cierre en viñetas cortas separadas por saltos de línea (máximo 6 líneas cada uno), sin inventar actividades.
+- Resume inicio, desarrollo y cierre en viñetas cortas separadas por saltos de línea (máximo 3 líneas cortas cada uno), sin inventar actividades.
 - No incluyas nombres de alumnos.`;
 
   async function leerPlaneacion(file) {
@@ -114,7 +128,7 @@ Reglas:
     } else if (/\.(txt|md)$/i.test(file.name)) {
       parts = [{ text: PROMPT_PLAN(anio) + '\n\nDOCUMENTO:\n' + anonimizar(await file.text()).texto }];
     } else throw new Error('Sube la planeación en PDF o Word (.docx).');
-    const out = await generar(parts, { json: true, temperatura: 0.1, maxTokens: 65536 });
+    const out = await generar(parts, { json: true, temperatura: 0.1, maxTokens: 65536, espera: 150000 });
     const planes = Array.isArray(out) ? out : (out.planeaciones || []);
     if (!planes.length) throw new Error('No encontré sesiones en el documento.');
     return planes.map((p) => ({

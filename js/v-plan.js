@@ -10,6 +10,7 @@
   async function subir(file) {
     if (!WD.requiereIA()) return;
     leyendo = file.name; WD.refrescar();
+    const t0 = Date.now(); const reloj = setInterval(() => { const el = document.getElementById('pl-seg'); if (el) el.textContent = Math.round((Date.now() - t0) / 1000) + ' s'; else if (!leyendo) clearInterval(reloj); }, 1000);
     try {
       const planes = await WD.ai.leerPlaneacion(file);
       leyendo = false; WD.refrescar();
@@ -50,7 +51,7 @@
       <div class="card"><div class="row" style="gap:16px;align-items:flex-start">
         <div style="flex:1;min-width:240px" class="stack"><h2>Subir planeación</h2><p class="small muted">PDF o Word. Puede ser una sola (una quincena) o varias juntas (todo el trimestre o el ciclo).</p>
           ${WD.ai.tieneClave() ? '' : '<p class="note small">Para leer planeaciones se usa tu Gemini. Se conecta una sola vez.</p>'}</div>
-        <div class="stack" style="justify-items:start">${leyendo ? `<div class="row"><span class="spinner"></span><span class="small">Leyendo “${esc(leyendo)}”… puede tardar hasta un minuto.</span></div>` : `<button class="btn pri" data-act="subirPlan">${WD.icon('subir')} Elegir archivo</button>`}
+        <div class="stack" style="justify-items:start">${leyendo ? `<div class="row"><span class="spinner"></span><span class="small">Leyendo “${esc(leyendo)}”… <b id="pl-seg">0 s</b></span></div>` : `<button class="btn pri" data-act="subirPlan">${WD.icon('subir')} Elegir archivo</button>`}
           ${ps.some((p) => p.ejemplo) ? '' : `<button class="btn ghost sm" data-act="planEjemplo">Ver un ejemplo en esta semana</button>`}</div>
         <input type="file" id="in-plan" accept=".pdf,.docx,application/pdf" hidden></div></div>
       ${ps.length ? `<div class="stack">${ps.map((p) => { const f = p.sesiones.map((s) => s.fecha).sort(); const porCampo = WD.CAMPOS.map((c) => [c, p.sesiones.filter((s) => s.campo === c).length]).filter((x) => x[1]); return `<div class="card">
