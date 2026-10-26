@@ -69,6 +69,7 @@
           <span class="sync ${s.modo === 'google' ? s.sync : ''}"><i></i>${syncTxt}</span>
           ${WD.google.configurado() && s.modo !== 'google' ? '<button class="btn sm" data-act="entrarGoogle" style="justify-self:start">Conectar con Google</button>' : ''}
           <span>${esc(WD.state.escuela.grado ? `${WD.state.escuela.grado} ${WD.state.escuela.grupo}` : '')} ${esc(WD.state.escuela.ciclo ? '· Ciclo ' + WD.state.escuela.ciclo : '')}</span>
+          <span class="tiny faint">Versión ${WD.VERSION}</span>
         </div>
       </aside>
       <div class="scrim" id="side-scrim" hidden data-act="cerrarMenu"></div>

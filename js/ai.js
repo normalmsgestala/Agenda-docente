@@ -57,7 +57,7 @@
         if (!respaldo.length) { try { respaldo = await listarModelos(key); } catch (_) { respaldo = PREFERIDOS; } }
         for (const m of respaldo.filter((x) => x !== modelo).slice(0, 4)) {
           WD.toast && WD.toast('Gemini está saturado, probando con otro modelo…', 2500);
-          r = await llamar(m);
+          r = await llamar(m); modelo = m;
           if (r.ok) break;
           if (![404, 429, 500, 503].includes(r.status)) break;
         }
