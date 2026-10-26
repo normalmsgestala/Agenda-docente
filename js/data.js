@@ -49,6 +49,8 @@
       actividades: [],
       incidencias: [],
       calendario: { preset: '', eventos: [], valores: {} },
+      juntas: [],
+      entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
   }
@@ -80,7 +82,7 @@
     out.ajustes = { ...b.ajustes, ...(s.ajustes || {}) };
     out.horario = s.horario && Array.isArray(s.horario.bloques) ? s.horario : b.horario;
     out.trimestres = (s.trimestres && s.trimestres.length === 3) ? s.trimestres.map((t, i) => ({ ...b.trimestres[i], ...t, pesos: { ...pesosDefault(), ...(t.pesos || {}) } })) : b.trimestres;
-    ['alumnos', 'planeaciones', 'actividades', 'incidencias'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
+    ['alumnos', 'planeaciones', 'actividades', 'incidencias', 'juntas', 'entrevistas'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
     if (!out.asistencia || typeof out.asistencia !== 'object') out.asistencia = {};
     if (!out.calendario || !Array.isArray(out.calendario.eventos)) out.calendario = b.calendario;
     return out;
