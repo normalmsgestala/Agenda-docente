@@ -1,5 +1,5 @@
 /* Web Docente · funciona sin internet: guarda la app en el dispositivo */
-const CACHE = 'web-docente-v8';
+const CACHE = 'web-docente-v9';
 const ARCHIVOS = ['./', 'index.html', 'app.css', 'config.js', 'icon.svg', 'manifest.webmanifest',
   'js/util.js', 'js/data.js', 'js/mascots.js', 'js/ai.js', 'js/google.js', 'js/ui.js', 'js/v-inicio.js', 'js/v-grupo.js', 'js/v-wizard.js',
   'js/v-asistencia.js', 'js/v-evaluacion.js', 'js/v-plan.js', 'js/v-incidencias.js', 'js/v-config.js', 'js/main.js'];
