@@ -316,7 +316,8 @@ body.proyector .tb-centro { min-height: calc(100vh - 300px); }
 .ba-ico i { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--bad); }
 .ba-card { background: var(--accent); color: var(--accent-ink); border-radius: 18px; padding: 18px 20px; box-shadow: var(--shadow); }
 .ba-saldo { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.ba-ojo { background: none; border: 0; color: inherit; opacity: .85; cursor: pointer; padding: 2px; display: grid; }
+.ba-ojo { background: none; border: 0; color: inherit; opacity: .85; cursor: pointer; padding: 4px; display: grid; }
+.ba-ojo svg, .ba-ico svg { width: 22px; height: 22px; }
 .ba-tag { font-size: 12px; background: rgba(255,255,255,.18); padding: 3px 9px; border-radius: 99px; }
 .ba-acc { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 8px; }
 .ba-acc button { display: grid; justify-items: center; gap: 6px; background: none; border: 0; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
