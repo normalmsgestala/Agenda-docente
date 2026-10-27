@@ -264,6 +264,25 @@ body.proyector .wrap { max-width: 1400px; }
 body.proyector .herr { min-height: calc(100vh - 140px); align-content: center; }
 body.proyector .equipo { font-size: 19px; }
 
+
+/* ---------- tómbola ---------- */
+.tb-modo { display: grid; gap: 6px; justify-items: center; text-align: center; cursor: pointer; padding: 26px 16px; font: inherit; color: var(--ink); }
+.tb-modo:hover { border-color: var(--line-2); }
+.tb-ic { font-size: 30px; font-weight: 600; color: var(--accent); letter-spacing: .08em; }
+.tb-centro { min-height: 340px; display: grid; place-items: center; align-content: center; gap: 14px; text-align: center; padding: 28px; }
+.tb-num { font-size: clamp(110px, 22vw, 220px); font-weight: 700; line-height: .95; letter-spacing: -0.04em; color: var(--accent); }
+.tb-pal { font-size: clamp(30px, 5vw, 52px); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+.tb-op { font-size: clamp(54px, 10vw, 110px); font-weight: 700; letter-spacing: -0.02em; color: var(--accent); line-height: 1.05; }
+.tb-resp { display: inline-flex; gap: 14px; align-items: baseline; background: var(--accent); color: var(--accent-ink); border-radius: 14px; padding: 12px 22px; }
+.tb-resp b { font-size: 54px; } .tb-resp span { font-size: 22px; font-weight: 600; }
+.tb-vacio { font-size: 28px; color: var(--faint); font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
+.tb-gira { display: grid; justify-items: center; }
+.tb-girar { font-size: 24px; padding: 16px 56px; border-radius: 99px; }
+.tb-reg { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 5px; }
+.tb-reg span { aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+.tb-reg span.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+body.proyector .tb-centro { min-height: calc(100vh - 300px); }
+
 /* ---------- impresión (formatos oficiales) ---------- */
 #print-area { display: none; }
 .doc { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11.5pt; line-height: 1.45; }

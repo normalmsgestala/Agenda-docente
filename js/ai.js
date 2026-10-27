@@ -206,6 +206,7 @@ Devuelve JSON {"gravedad":"leve|moderada|grave","hechos":"I. Descripción formal
 - Calendario y CTE: calendario escolar SEP precargado (días sin clases, vacaciones, registro de calificaciones, valor del mes), fechas propias y registro de cada sesión de Consejo Técnico (temas, acuerdos, acciones para el grupo, pendientes) que se imprime.
 - Juntas con padres: juntas de grupo con lista de asistencia de tutores (un toque), notas, acuerdos, acta redactada con IA, impresión del acta y de la lista para firmas; entrevistas individuales con cada familia y su registro; tabla de asistencia de tutores por junta.
 - Herramientas de aula (para proyector): temporizador con sonido, semáforo de ruido con el micrófono o manual, alumno al azar sin repetir y sin los que faltaron, y hacer equipos al azar por número de equipos o de integrantes (se pueden imprimir). Botón "Modo proyector" para pantalla limpia.
+- Tómbola: juego para el proyector por grado (1º primaria a 3º secundaria) con lotería de números, abecedario con palabra y sílabas, y desafío de cálculo mental; con voz y registro de lo que ya salió.
 - Escuela: datos y logos que llenan todos los formatos.
 - Ajustes: tema claro u oscuro, cambiar de mascota, conectar Gemini, descargar todos los datos en .zip y borrar todo para el nuevo ciclo.`;
   async function preguntarMascota(pregunta, historial = []) {

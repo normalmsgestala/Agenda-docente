@@ -18,6 +18,7 @@
     pronto: 'M12 6v6l4 2M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0',
     juntas: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20v-1a5 5 0 0 1 9-3M13 16a5 5 0 0 1 9 3v1M12 20v-1a4 4 0 0 1 8 0',
     herramientas: 'M12 8v4l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 2h6',
+    tombola: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M7 12h10',
     calendario: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4',
     menu: 'M4 6h16M4 12h16M4 18h16',
     descargar: 'M12 4v11M7 10l5 5 5-5M5 20h14',
@@ -37,9 +38,10 @@
     { id: 'incidencias', t: 'Incidencias' }, { id: 'calendario', t: 'Calendario y CTE' },
     { id: 'juntas', t: 'Juntas con padres' },
     { id: 'herramientas', t: 'Herramientas de aula' },
+    { id: 'tombola', t: 'Tómbola' },
   ];
   const NAV2 = [{ id: 'escuela', t: 'Escuela' }, { id: 'ajustes', t: 'Ajustes' }];
-  const PRONTO = ['Control administrativo', 'Banco Estala', 'IDAI / ICE', 'Tómbola', 'Comunicación con familias', 'Comisiones y cumpleaños'];
+  const PRONTO = ['Control administrativo', 'Banco Estala', 'IDAI / ICE', 'Comunicación con familias', 'Comisiones y cumpleaños'];
   WD.PRONTO = PRONTO;
 
   /* ---------- tema ---------- */
@@ -249,6 +251,7 @@
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
+    { k: 'tombola loteria juego numeros letras calculo mental', t: 'Tómbola', to: 'tombola' },
     { k: 'calendario cte consejo tecnico vacaciones sin clases fechas registro calificaciones', t: 'Calendario y CTE', to: 'calendario' },
     { k: 'gemini ia clave conectar', t: 'Conectar Gemini', to: 'ajustes' },
     { k: 'oscuro claro tema mascota cambiar', t: 'Tema y mascota', to: 'ajustes' },
