@@ -64,6 +64,7 @@
       <div class="hello"><div style="flex:1;min-width:0"><div class="k">Agenda Maestro</div><h1>${esc(WD.state.docente.nombre)}</h1>
         <p class="muted" style="margin-top:6px">${esc(WD.fechaLarga(hoyS))}${e.grado ? ` · ${esc(e.grado)} ${esc(e.grupo)}` : ''}${e.nombre ? ` · ${esc(e.nombre)}` : ''}</p></div></div>
       ${faltan.length ? `<div class="card"><div class="card-h"><h2 class="grow">Para empezar</h2><span class="small muted">${ps.length - faltan.length} de ${ps.length}</span></div><div class="steps g4 grid">${ps.map((p, i) => `<a class="stepi ${p.ok ? 'ok' : ''}" href="${p.to ? '#' + p.to : '#'}" ${p.act ? `data-act="${p.act}"` : ''}><span class="n">${p.ok ? '✓' : i + 1}</span><span class="small">${p.t}</span></a>`).join('')}</div></div>` : ''}
+      ${(() => { const p = WD.entregasPendientes ? WD.entregasPendientes() : []; return p.length ? `<a class="card row" href="#control" style="text-decoration:none;color:inherit"><span class="pill warn">Entregas del mes</span><span class="small" style="flex:1">Te falta: ${p.map((x) => esc(x.nombre)).join(' · ')}</span>${WD.icon('der')}</a>` : ''; })()}
       <div class="home">
         <section class="stack" aria-label="Semana">
           <div class="row"><h2 style="flex:1">Semana del ${rango}</h2>

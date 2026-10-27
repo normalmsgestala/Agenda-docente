@@ -52,6 +52,7 @@
       juntas: [],
       diagnosticos: [],
       banco: null,
+      control: null,
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };

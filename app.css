@@ -299,6 +299,12 @@ body.proyector .tb-centro { min-height: calc(100vh - 300px); }
 .dg-ap { font: inherit; color: var(--ink); cursor: pointer; text-align: left; width: 100%; }
 .dg-ap:hover { border-color: var(--line-2); }
 
+/* ---------- control administrativo ---------- */
+.tbl.ct th.hoy, .tbl.ct td.hoy { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.ct-ck { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+.ct-ck.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.ct-ck.tarde { border-color: var(--bad); background: var(--bad-soft); }
+
 /* ---------- banco ---------- */
 .b-vent { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
 .b-video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #000; border-radius: 12px; }

@@ -25,6 +25,7 @@
     recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
     qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
     documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
+    control: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M8 12l2 2 4-4M8 17h8',
     banco: 'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18',
     idai: 'M4 19h16M6 15l3-8 3 8M7 12.5h4M14 9h4M16 7v4M14 15h4',
     tombola: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M7 12h10',
@@ -50,9 +51,10 @@
     { id: 'tombola', t: 'Tómbola' },
     { id: 'idai', t: 'IDAI / ICE' },
     { id: 'banco', t: 'Banco Estala' },
+    { id: 'control', t: 'Control administrativo' },
   ];
   const NAV2 = [{ id: 'escuela', t: 'Escuela' }, { id: 'ajustes', t: 'Ajustes' }];
-  const PRONTO = ['Control administrativo', 'Comunicación con familias', 'Comisiones y cumpleaños'];
+  const PRONTO = ['Comunicación con familias', 'Comisiones y cumpleaños'];
   WD.PRONTO = PRONTO;
 
   /* ---------- tema ---------- */
@@ -276,6 +278,7 @@
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
+    { k: 'control administrativo entregas mensuales direccion supervision visitas vo bo programa analitico udei', t: 'Control administrativo', to: 'control' },
     { k: 'banco estala dinero billetes sueldo cuentas prestamo servicios recibos economia', t: 'Banco Estala', to: 'banco' },
     { k: 'idai ice diagnostico alfabetizacion lectura escritura nivel silabico presilabico alfabetico convenciones dictado', t: 'IDAI / ICE', to: 'idai' },
     { k: 'tombola loteria juego numeros letras calculo mental', t: 'Tómbola', to: 'tombola' },
