@@ -169,6 +169,28 @@
     } catch (e) { console.warn('Foto no subida a Drive', e); }
   }
 
+  /* Archivos públicos de solo lectura (saldo del banco del aula): carpeta propia, compartidos con quien tenga el enlace */
+  let carpetaPub = null;
+  async function publicar(id, nombre, contenido) {
+    if (estado.modo !== 'google') throw new Error('Inicia sesión con Google para publicar.');
+    if (!id) {
+      await asegurarCarpeta();
+      if (!carpetaPub) {
+        carpetaPub = (await buscar(`name='Saldos para alumnos' and '${carpetaId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`))[0]?.id;
+        if (!carpetaPub) { const r = await api(`${DRIVE}/files?fields=id`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Saldos para alumnos', mimeType: 'application/vnd.google-apps.folder', parents: [carpetaId] }) }); carpetaPub = (await r.json()).id; }
+      }
+      id = await crearArchivo({ name: nombre, parents: [carpetaPub] }, contenido);
+      const r = await api(`${DRIVE}/files/${id}/permissions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'reader', type: 'anyone' }) });
+      if (!r.ok) throw new Error('Drive no permitió compartir el archivo (' + r.status + ').');
+      return id;
+    }
+    const r = await api(`${UP}/files/${id}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: contenido });
+    if (r.status === 404) return publicar(null, nombre, contenido);
+    if (!r.ok) throw new Error('Drive no actualizó el saldo (' + r.status + ').');
+    return id;
+  }
+  async function borrarArchivo(id) { if (estado.modo !== 'google' || !id) return; await api(`${DRIVE}/files/${id}`, { method: 'DELETE' }); }
+
   WD.onSave((opts) => {
     if (estado.modo !== 'google' || opts.remoto) return;
     if (opts.clave) guardarClave(WD.state.ajustes.geminiKey).catch(() => {});
@@ -176,5 +198,5 @@
   });
   window.addEventListener('online', () => { if (estado.modo === 'google' && estado.sync === 'pendiente') subir(); });
 
-  WD.google = { configurado, iniciarSesion, restaurarSesion, cerrarSesion, enviarCorreo, subirFoto, estado, onCambio: (f) => cbs.add(f), subir };
+  WD.google = { configurado, iniciarSesion, restaurarSesion, cerrarSesion, enviarCorreo, subirFoto, estado, onCambio: (f) => cbs.add(f), subir, publicar, borrarArchivo };
 })(window.WD);

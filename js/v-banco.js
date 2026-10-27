@@ -202,7 +202,47 @@
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" width="${px}" height="${px}" shape-rendering="crispEdges" role="img" aria-label="Código QR ${esc(txt)}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   };
-  const codigoQR = (c) => `${location.origin}${location.pathname}#cuenta/${c.num}`;
+  const codigoQR = (c) => `${location.origin}${location.pathname}#${c.pub && B().ajustes.publico ? `s/${c.pub}` : `cuenta/${c.num}`}`;
+
+  /* ---------- saldo visible desde el celular del alumno (archivo público de solo lectura) ---------- */
+  function datosPublicos(id) {
+    const a = WD.state.alumnos.find((x) => x.id === id); const c = cta(id); const b = B(); const p = prestamoActivo(id); const e = WD.state.escuela;
+    const mov = (m) => ({ f: m.fecha.slice(0, 10), m: m.tipo === 'transferencia' ? (m.monto > 0 ? 'Transferencia recibida' : 'Transferencia enviada') : m.motivo, c: m.monto });
+    return { v: 1, banco: b.ajustes.nombre, moneda: b.ajustes.moneda, simbolo: b.ajustes.simbolo, cuenta: c.num, nombre: (a.nombres || '').split(/\s+/)[0], grupo: `${String(e.grado || '').replace(/°+$/, '')}° ${e.grupo || ''}`.trim(), puesto: c.puesto || '', saldo: c.saldo,
+      prestamo: p ? p.resta : 0, recibos: recibosDe(id).map((r) => ({ n: r.nombre, t: r2(r.monto + recargo(r)), v: r.vence.slice(0, 10) })), movs: b.movs.filter((m) => m.al === id && m.monto).slice(-8).reverse().map(mov), act: new Date().toISOString() };
+  }
+  let pubTimer = null, publicando = false;
+  async function sincronizarPublicos(forzar) {
+    const b = B(); if (!b.ajustes.publico || WD.google.estado.modo !== 'google' || !navigator.onLine) return 0;
+    if (publicando) { clearTimeout(pubTimer); pubTimer = setTimeout(sincronizarPublicos, 5000); return 0; }
+    publicando = true; let n = 0;
+    try {
+      for (const a of WD.alumnosActivos()) {
+        const c = cta(a.id); if (!c) continue; const d = datosPublicos(a.id); const firma = JSON.stringify({ ...d, act: '' });
+        if (!forzar && c.pub && c.pubFirma === firma) continue;
+        const id = await WD.google.publicar(c.pub, `Saldo ${c.num}.json`, JSON.stringify(d));
+        if (id !== c.pub) { c.pub = id; } c.pubFirma = firma; n++;
+      }
+      if (n) WD.save({ remotoBanco: true });
+    } finally { publicando = false; }
+    return n;
+  }
+  if (WD.onSave) WD.onSave((o) => { if (o && o.remotoBanco) return; if (!WD.state.banco?.ajustes?.publico) return; clearTimeout(pubTimer); pubTimer = setTimeout(() => sincronizarPublicos().catch((e) => console.warn(e)), 4000); });
+  WD.act.bPublicoActivar = async (el) => {
+    if (WD.google.estado.modo !== 'google') { WD.toast('Necesitas haber entrado con Google y tener internet.'); return; }
+    const ok = await WD.confirmar('Saldo en el celular del alumno', 'Se creará en tu Drive, en la carpeta «Saldos para alumnos», un archivo por alumno con su <b>número de cuenta, su primer nombre, su saldo, deudas y últimos movimientos</b>. Cada archivo lo puede ver quien tenga el enlace o escanee la tarjeta. Tu agenda, listas y evaluaciones siguen privadas. Después vuelve a imprimir las tarjetas.', 'Activar');
+    if (!ok) return; el.disabled = true; el.textContent = 'Publicando saldos…';
+    B().ajustes.publico = true; WD.save();
+    try { const n = await sincronizarPublicos(true); WD.refrescar(); WD.toast(`Listo: ${n} saldos publicados. Ahora imprime las tarjetas nuevas.`, 4500); }
+    catch (e) { WD.toast(e.message, 5000); el.disabled = false; el.textContent = 'Activar'; }
+  };
+  WD.act.bPublicoAhora = async (el) => { el.disabled = true; try { const n = await sincronizarPublicos(true); WD.toast(`${n} saldos actualizados`); } catch (e) { WD.toast(e.message, 5000); } el.disabled = false; };
+  WD.act.bPublicoDesactivar = async (el) => {
+    if (!(await WD.confirmar('Quitar saldo del celular', 'Se borran de tu Drive los archivos de saldo y los códigos de las tarjetas dejarán de mostrar el saldo.', 'Quitar', true))) return;
+    el.disabled = true; const b = B(); b.ajustes.publico = false;
+    for (const c of Object.values(b.cuentas)) { if (c.pub) { try { await WD.google.borrarArchivo(c.pub); } catch (_) {} } c.pub = ''; c.pubFirma = ''; }
+    WD.save(); WD.refrescar(); WD.toast('Listo. Los saldos ya no se ven desde el celular.');
+  };
   WD.act.bTarjetas = () => {
     const b = B(); const e = WD.state.escuela;
     WD.vistaDocumento('Tarjetas de cuenta', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${WD.alumnosActivos().map((a) => { const c = cta(a.id); return `<div style="border:1.5px solid #333;border-radius:10px;padding:12px 14px;height:150px;display:grid;grid-template-columns:1fr auto;gap:10px;page-break-inside:avoid">
@@ -341,6 +381,9 @@
           ${pend.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Alumno</th><th>Recibo</th><th>Vence</th><th class="r">Total</th><th></th></tr></thead><tbody>${pend.map((r) => { const a = WD.state.alumnos.find((x) => x.id === r.al); const rc = recargo(r); return `<tr><td>${esc(a ? WD.nombreLista(a) : '')}</td><td>${esc(r.nombre)}</td><td class="small ${rc ? '' : 'muted'}" style="${rc ? 'color:var(--bad)' : ''}">${esc(WD.fechaLarga(r.vence.slice(0, 10)))}</td><td class="r">${din(r.monto + rc)}</td><td class="r"><button class="btn sm" data-act="bPagarRecibo" data-id="${r.id}">Pagar</button></td></tr>`; }).join('')}</tbody></table></div>` : '<p class="small muted">No hay recibos pendientes.</p>'}</div>`;
       } else if (tab === 'imprimir') cuerpo = `<div class="grid g2">
           <div class="card stack"><b>Billetes</b><p class="small muted" style="margin:0">8 por hoja, de ${esc(b.ajustes.nombre)}.</p><div class="row">${['20', '50', '100', '200'].map((d) => `<button class="btn sm" data-act="bBilletes" data-d="${d}">${d}</button>`).join('')}<button class="btn sm" data-act="bBilletes" data-d="mix">Combinados</button></div></div>
+          <div class="card stack" style="grid-column:1/-1"><div class="row"><b style="flex:1">Saldo en el celular del alumno</b>${b.ajustes.publico ? '<span class="pill ok">Activado</span>' : '<span class="pill">Apagado</span>'}</div>
+            <p class="small muted" style="margin:0">${b.ajustes.publico ? `El alumno escanea su tarjeta con su celular y ve su saldo, sin iniciar sesión. Se actualiza solo cuando haces movimientos${WD.google.estado.modo === 'google' ? '' : ' (al entrar con Google)'}.${WD.CONFIG.googleApiKey ? '' : ' <b>Falta la clave de Drive para que el celular pueda leerlo.</b>'}` : 'Al activarlo, el código de cada tarjeta muestra el saldo en el celular del alumno sin iniciar sesión. Se publica solo su número de cuenta, primer nombre, saldo, deudas y movimientos.'}</p>
+            <div class="row">${b.ajustes.publico ? `<button class="btn sm" data-act="bPublicoAhora">Actualizar ahora</button><button class="btn sm ghost danger" data-act="bPublicoDesactivar">Quitar</button>` : '<button class="btn sm pri" data-act="bPublicoActivar">Activar</button>'}</div></div>
           <div class="card stack"><b>Tarjetas de cuenta</b><p class="small muted" style="margin:0">Nombre, número de cuenta, puesto y código QR. El alumno la muestra en «Consulta de saldo» para ver su cuenta.</p><button class="btn sm" data-act="bTarjetas" style="justify-self:start">${WD.icon('imprimir')} Imprimir tarjetas</button></div>
           <div class="card stack"><b>Contratos de apertura</b><p class="small muted" style="margin:0">Las reglas del banco con firmas del alumno, tutor y docente.</p><button class="btn sm" data-act="bContratos" style="justify-self:start">${WD.icon('imprimir')} Imprimir contratos</button></div>
           <div class="card stack"><b>Estados de cuenta</b><p class="small muted" style="margin:0">Una hoja por alumno con sus últimos movimientos.</p><button class="btn sm" data-act="bEstado" style="justify-self:start">${WD.icon('imprimir')} Imprimir todos</button></div></div>`;

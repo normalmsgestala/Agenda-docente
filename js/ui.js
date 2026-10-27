@@ -56,11 +56,34 @@
   WD.ir = (id) => { if (location.hash !== '#' + id) location.hash = id; else WD.render(); window.scrollTo(0, 0); };
   window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
 
+  // Página del alumno: lee su saldo público (solo lectura) sin iniciar sesión
+  WD.saldoAlumno = async (id) => {
+    const caja = (html) => { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center;gap:14px">${html}</div></div>`; };
+    caja('<span class="spinner"></span><p class="muted" style="margin:0">Buscando tu cuenta…</p>');
+    const key = WD.CONFIG.googleApiKey;
+    if (!key) { caja('<div class="label">Banco Estala</div><p style="margin:0">La consulta desde el celular aún no está lista. Pídele a tu maestro que la active.</p>'); return; }
+    try {
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${encodeURIComponent(key)}&t=${Date.now()}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status === 404 ? 'Esta tarjeta ya no está activa. Pídele una nueva a tu maestro.' : 'No pude leer tu cuenta. Intenta de nuevo en un momento.');
+      const d = await r.json(); const din = (n) => `${d.simbolo} ${Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`;
+      const f = (s) => new Date(s + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+      caja(`<div class="label">${esc(d.banco)} · ${esc(d.cuenta)}</div>
+        <div style="font-size:26px;font-weight:700;line-height:1.1">Hola, ${esc(d.nombre)}</div>
+        <div><div class="label">Tu saldo</div><div class="b-saldo">${din(d.saldo)}</div></div>
+        ${d.prestamo ? `<span class="pill bad" style="font-size:15px">Préstamo: debes ${din(d.prestamo)}</span>` : ''}
+        ${(d.recibos || []).length ? `<div class="stack" style="gap:6px;width:100%;text-align:left"><div class="label">Recibos por pagar</div>${d.recibos.map((x) => `<div class="row"><span style="flex:1">${esc(x.n)} <span class="tiny muted">vence ${f(x.v)}</span></span><b>${din(x.t)}</b></div>`).join('')}</div>` : '<span class="pill ok" style="font-size:15px">No tienes recibos pendientes</span>'}
+        ${(d.movs || []).length ? `<div class="stack" style="gap:6px;width:100%;text-align:left"><div class="label">Últimos movimientos</div>${d.movs.map((m) => `<div class="row" style="gap:8px"><span class="small muted" style="width:52px">${f(m.f)}</span><span class="small" style="flex:1">${esc(m.m)}</span><b class="small" style="color:${m.c > 0 ? 'var(--ok)' : 'var(--bad)'}">${m.c > 0 ? '+' : ''}${din(m.c)}</b></div>`).join('')}</div>` : ''}
+        <p class="tiny muted" style="margin:0">Actualizado ${esc(new Date(d.act).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</p>
+        <button class="btn sm" onclick="location.reload()">Actualizar</button>`);
+    } catch (e) { caja(`<div class="label">Banco Estala</div><p style="margin:0">${esc(e.message)}</p><button class="btn sm" onclick="location.reload()">Intentar de nuevo</button>`); }
+  };
   WD.act.qrMaestro = () => { WD.vistaQR = true; WD.render(); };
   /* ---------- render principal ---------- */
   const root = () => document.getElementById('app');
   WD.render = function () {
     WD.aplicarTema();
+    const pub = /^#s\/([\w-]{10,})/.exec(location.hash || '');
+    if (pub) { WD.saldoAlumno(pub[1]); return; }
     const qr = /^#cuenta\/(EST-\d+)/i.exec(location.hash || '');
     if (qr) {
       const dentro = (!WD.google.configurado() || WD.google.estado.modo === 'google' || WD.sinConexion) && WD.state.docente.nombre;
