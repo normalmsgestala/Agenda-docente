@@ -18,6 +18,13 @@
     pronto: 'M12 6v6l4 2M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0',
     juntas: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20v-1a5 5 0 0 1 9-3M13 16a5 5 0 0 1 9 3v1M12 20v-1a4 4 0 0 1 8 0',
     herramientas: 'M12 8v4l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 2h6',
+    campana: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0',
+    ojo: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    ojoNo: 'M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.8 8.3 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
+    enviar: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+    recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
+    qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
+    documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
     banco: 'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18',
     idai: 'M4 19h16M6 15l3-8 3 8M7 12.5h4M14 9h4M16 7v4M14 15h4',
     tombola: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M7 12h10',
@@ -56,27 +63,6 @@
   WD.ir = (id) => { if (location.hash !== '#' + id) location.hash = id; else WD.render(); window.scrollTo(0, 0); };
   window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
 
-  // Página del alumno: lee su saldo público (solo lectura) sin iniciar sesión
-  WD.saldoAlumno = async (id) => {
-    const caja = (html) => { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center;gap:14px">${html}</div></div>`; };
-    caja('<span class="spinner"></span><p class="muted" style="margin:0">Buscando tu cuenta…</p>');
-    const key = WD.CONFIG.googleApiKey;
-    if (!key) { caja('<div class="label">Banco Estala</div><p style="margin:0">La consulta desde el celular aún no está lista. Pídele a tu maestro que la active.</p>'); return; }
-    try {
-      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${encodeURIComponent(key)}&t=${Date.now()}`, { cache: 'no-store' });
-      if (!r.ok) throw new Error(r.status === 404 ? 'Esta tarjeta ya no está activa. Pídele una nueva a tu maestro.' : 'No pude leer tu cuenta. Intenta de nuevo en un momento.');
-      const d = await r.json(); const din = (n) => `${d.simbolo} ${Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`;
-      const f = (s) => new Date(s + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-      caja(`<div class="label">${esc(d.banco)} · ${esc(d.cuenta)}</div>
-        <div style="font-size:26px;font-weight:700;line-height:1.1">Hola, ${esc(d.nombre)}</div>
-        <div><div class="label">Tu saldo</div><div class="b-saldo">${din(d.saldo)}</div></div>
-        ${d.prestamo ? `<span class="pill bad" style="font-size:15px">Préstamo: debes ${din(d.prestamo)}</span>` : ''}
-        ${(d.recibos || []).length ? `<div class="stack" style="gap:6px;width:100%;text-align:left"><div class="label">Recibos por pagar</div>${d.recibos.map((x) => `<div class="row"><span style="flex:1">${esc(x.n)} <span class="tiny muted">vence ${f(x.v)}</span></span><b>${din(x.t)}</b></div>`).join('')}</div>` : '<span class="pill ok" style="font-size:15px">No tienes recibos pendientes</span>'}
-        ${(d.movs || []).length ? `<div class="stack" style="gap:6px;width:100%;text-align:left"><div class="label">Últimos movimientos</div>${d.movs.map((m) => `<div class="row" style="gap:8px"><span class="small muted" style="width:52px">${f(m.f)}</span><span class="small" style="flex:1">${esc(m.m)}</span><b class="small" style="color:${m.c > 0 ? 'var(--ok)' : 'var(--bad)'}">${m.c > 0 ? '+' : ''}${din(m.c)}</b></div>`).join('')}</div>` : ''}
-        <p class="tiny muted" style="margin:0">Actualizado ${esc(new Date(d.act).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</p>
-        <button class="btn sm" onclick="location.reload()">Actualizar</button>`);
-    } catch (e) { caja(`<div class="label">Banco Estala</div><p style="margin:0">${esc(e.message)}</p><button class="btn sm" onclick="location.reload()">Intentar de nuevo</button>`); }
-  };
   WD.act.qrMaestro = () => { WD.vistaQR = true; WD.render(); };
   /* ---------- render principal ---------- */
   const root = () => document.getElementById('app');

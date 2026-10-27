@@ -32,6 +32,7 @@
       if (b.ajustes.saldoInicial > 0) mover(a.id, b.ajustes.saldoInicial, 'apertura', 'Apertura de cuenta y saldo inicial', { sinPrestamo: true });
       cambio = true;
     });
+    Object.values(b.cuentas).forEach((c) => { if (!c.pin) { c.pin = String(1000 + Math.floor(Math.random() * 9000)); cambio = true; } });
     if (cambio) WD.save();
   }
   const cta = (id) => B().cuentas[id];
@@ -171,7 +172,8 @@
       <div class="row"><div style="flex:1"><div class="label">Saldo</div><div style="font-size:34px;font-weight:700;letter-spacing:-.02em">${din(c.saldo)}</div></div>${debe(id) ? `<span class="pill bad">Debe ${din(debe(id))}</span>` : '<span class="pill ok">Sin deudas</span>'}</div>
       <div class="row"><button class="btn pri" data-act="bOperar" data-al="${id}">Abonar</button><button class="btn" data-act="bOperar" data-s="-" data-al="${id}">Cobrar</button><button class="btn" data-act="bTransferir" data-al="${id}">Transferir</button><button class="btn" data-act="bEstado" data-al="${id}">${WD.icon('imprimir')} Estado de cuenta</button></div>
       <div class="grid g2"><label class="field"><span>Puesto o comisión</span><input class="in" list="b-puestos" data-bind="banco.cuentas.${id}.puesto" value="${esc(c.puesto || '')}" placeholder="Sin puesto"><datalist id="b-puestos">${PUESTOS.map((x) => `<option>${esc(x)}</option>`).join('')}</datalist></label>
-        <label class="field"><span>Sueldo semanal</span><input class="in" type="number" min="0" data-bind="banco.cuentas.${id}.sueldo" value="${c.sueldo || 0}"></label></div>
+        <label class="field"><span>Sueldo semanal</span><input class="in" type="number" min="0" data-bind="banco.cuentas.${id}.sueldo" value="${c.sueldo || 0}"></label>
+        <label class="field"><span>NIP para el celular</span><input class="in" inputmode="numeric" maxlength="6" data-bind="banco.cuentas.${id}.pin" value="${esc(c.pin || '')}"></label></div>
       <div class="sep"></div>
       <div class="label">Préstamo</div>
       ${p ? `<div class="row"><span style="flex:1">Debe <b>${din(p.resta)}</b> de ${din(p.monto)} · ${esc(WD.fechaLarga(p.fecha.slice(0, 10)))}</span><button class="btn sm" data-act="bAbonarPrestamo" data-al="${id}">Abonar con su saldo</button></div><p class="tiny muted" style="margin:0">Todo lo que gane paga primero este préstamo.</p>`
@@ -209,7 +211,7 @@
     const a = WD.state.alumnos.find((x) => x.id === id); const c = cta(id); const b = B(); const p = prestamoActivo(id); const e = WD.state.escuela;
     const mov = (m) => ({ f: m.fecha.slice(0, 10), m: m.tipo === 'transferencia' ? (m.monto > 0 ? 'Transferencia recibida' : 'Transferencia enviada') : m.motivo, c: m.monto });
     return { v: 1, banco: b.ajustes.nombre, moneda: b.ajustes.moneda, simbolo: b.ajustes.simbolo, cuenta: c.num, nombre: (a.nombres || '').split(/\s+/)[0], grupo: `${String(e.grado || '').replace(/°+$/, '')}° ${e.grupo || ''}`.trim(), puesto: c.puesto || '', saldo: c.saldo,
-      prestamo: p ? p.resta : 0, recibos: recibosDe(id).map((r) => ({ n: r.nombre, t: r2(r.monto + recargo(r)), v: r.vence.slice(0, 10) })), movs: b.movs.filter((m) => m.al === id && m.monto).slice(-8).reverse().map(mov), act: new Date().toISOString() };
+      prestamo: p ? p.resta : 0, recibos: recibosDe(id).map((r) => ({ id: r.id, n: r.nombre, t: r2(r.monto + recargo(r)), v: r.vence.slice(0, 10) })), movs: b.movs.filter((m) => m.al === id && m.monto).slice(-30).reverse().map(mov), aviso: b.ajustes.aviso || '', avisoFecha: b.ajustes.avisoFecha || '', act: new Date().toISOString() };
   }
   let pubTimer = null, publicando = false;
   async function sincronizarPublicos(forzar) {
@@ -237,6 +239,12 @@
     catch (e) { WD.toast(e.message, 5000); el.disabled = false; el.textContent = 'Activar'; }
   };
   WD.act.bPublicoAhora = async (el) => { el.disabled = true; try { const n = await sincronizarPublicos(true); WD.toast(`${n} saldos actualizados`); } catch (e) { WD.toast(e.message, 5000); } el.disabled = false; };
+  WD.act.bAviso = () => {
+    const b = B(); const m = WD.modal(`<div class="row"><h2 style="flex:1">Aviso para los alumnos</h2><button class="x" data-act="cerrarModal" aria-label="Cerrar">×</button></div>
+      <p class="small muted" style="margin:0">Lo ven en la campana de su celular. Déjalo vacío para quitarlo.</p><textarea class="in" id="av-t" style="min-height:110px" placeholder="Ej. El viernes abre la tienda del salón">${esc(b.ajustes.aviso || '')}</textarea>
+      <div class="row" style="justify-content:flex-end"><button class="btn pri" id="av-ok">Publicar</button></div>`);
+    m.querySelector('#av-ok').onclick = () => { b.ajustes.aviso = m.querySelector('#av-t').value.trim(); b.ajustes.avisoFecha = WD.iso(new Date()); WD.save(); WD.cerrarModal(); WD.toast('Aviso publicado'); };
+  };
   WD.act.bPublicoDesactivar = async (el) => {
     if (!(await WD.confirmar('Quitar saldo del celular', 'Se borran de tu Drive los archivos de saldo y los códigos de las tarjetas dejarán de mostrar el saldo.', 'Quitar', true))) return;
     el.disabled = true; const b = B(); b.ajustes.publico = false;
@@ -262,7 +270,8 @@
       <p><b>CUARTA (SAT escolar).</b> Cumplirá con la contribución escolar que financia premios y actividades del grupo.</p>
       <p><b>QUINTA (Transferencias).</b> Transferirá a sus compañeros solo con un motivo claro y justificado.</p>
       <p><b>SEXTA (Préstamos).</b> Podrá pedir un préstamo de hasta ${esc(din(b.prestamoMax))}; todo lo que gane pagará primero su deuda hasta liquidarla.</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:70px;text-align:center;font-size:10pt"><div style="border-top:1px solid #000;padding-top:6px">${esc(WD.nombreCompleto(a))}<br>Alumno</div><div style="border-top:1px solid #000;padding-top:6px">Padre, madre o tutor<br>Enterado</div><div style="border-top:1px solid #000;padding-top:6px">${esc(d.nombre || '')}<br>Docente</div></div></div>`; }).join(''));
+      <p><b>SÉPTIMA (NIP).</b> Su NIP secreto es <b style="font-family:monospace;font-size:13pt">${esc(c.pin || '')}</b>. Lo usará para transferir y pagar desde su celular, y no debe compartirlo.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:60px;text-align:center;font-size:10pt"><div style="border-top:1px solid #000;padding-top:6px">${esc(WD.nombreCompleto(a))}<br>Alumno</div><div style="border-top:1px solid #000;padding-top:6px">Padre, madre o tutor<br>Enterado</div><div style="border-top:1px solid #000;padding-top:6px">${esc(d.nombre || '')}<br>Docente</div></div></div>`; }).join(''));
   };
   WD.act.bBilletes = (el) => {
     const b = B().ajustes; const den = el.dataset.d; const ds = den === 'mix' ? [20, 50, 100, 200, 20, 50, 100, 200] : Array(8).fill(Number(den));
@@ -292,7 +301,7 @@
     const yo = { stream, activo: true, pausa: false, t: 0 }; cam = yo;
     const leer = () => {
       if (!yo.activo || !video.isConnected) { if (cam === yo) detenerCamara(); return; }
-      if (!yo.pausa && video.readyState >= 2 && video.videoWidth) {
+      if (!yo.pausa && Date.now() >= pausaHasta && video.readyState >= 2 && video.videoWidth) {
         const k = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight)); cv.width = (video.videoWidth * k) | 0; cv.height = (video.videoHeight * k) | 0;
         ctx.drawImage(video, 0, 0, cv.width, cv.height); const r = window.jsQR(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'attemptBoth' });
         if (r && r.data) alLeer(r.data);
@@ -303,7 +312,43 @@
   }
   function detenerCamara() { if (!cam) return; cam.activo = false; clearTimeout(cam.t); cam.stream.getTracks().forEach((t) => t.stop()); cam = null; }
   window.addEventListener('hashchange', detenerCamara);
-  const alumnoDeCodigo = (txt) => { const m = /EST-?\s*(\d+)/i.exec(String(txt || '')); if (!m) return null; const num = `EST-${m[1]}`; const id = Object.keys(B().cuentas).find((k) => B().cuentas[k].num === num); return id && WD.state.alumnos.find((a) => a.id === id && a.activo !== false) ? id : null; };
+  const alumnoDeCodigo = (txt) => { const s = /#s\/([\w-]{10,})/.exec(String(txt || '')); if (s) { const k = Object.keys(B().cuentas).find((x) => B().cuentas[x].pub === s[1]); return k && WD.state.alumnos.find((a) => a.id === k && a.activo !== false) ? k : null; } const m = /EST-?\s*(\d+)/i.exec(String(txt || '')); if (!m) return null; const num = `EST-${m[1]}`; const id = Object.keys(B().cuentas).find((k) => B().cuentas[k].num === num); return id && WD.state.alumnos.find((a) => a.id === id && a.activo !== false) ? id : null; };
+
+  // solicitudes firmadas que el alumno genera en su celular (transferir / pagar)
+  const idDeCuenta = (num) => Object.keys(B().cuentas).find((k) => B().cuentas[k].num === String(num).toUpperCase());
+  async function procesarSolicitud(txt) {
+    const p = String(txt).split('|'); const b = B();
+    const falla = (t) => ({ ok: false, html: `<div class="b-espera"><p style="font-size:22px;font-weight:600;color:var(--bad);margin:0">${esc(t)}</p><p class="muted" style="margin:6px 0 0">No se movió dinero.</p></div>` });
+    if (p.length !== 9 || p[0] !== 'WDB1') return falla('Código no válido');
+    const [, tipo, de, a, montoTxt, motivo, ts, nonce, firma] = p; const deId = idDeCuenta(de); const c = deId && cta(deId);
+    if (!c || !WD.state.alumnos.find((x) => x.id === deId && x.activo !== false)) return falla('La cuenta no es de este grupo');
+    if (firma !== (await WD.firmaBanco(c.pin, p.slice(0, 8).join('|')))) return falla('El NIP no es correcto');
+    if (Math.abs(Date.now() - Number(ts)) > 2 * 3600e3) return falla('El código ya venció. Genera uno nuevo.');
+    b.usados = b.usados || []; if (b.usados.includes(nonce)) return falla('Este código ya se usó');
+    const quien = WD.state.alumnos.find((x) => x.id === deId); const monto = r2(Number(montoTxt));
+    let html;
+    if (tipo === 'tx') {
+      const aId = idDeCuenta(a); const dest = aId && WD.state.alumnos.find((x) => x.id === aId && x.activo !== false);
+      if (!dest || aId === deId) return falla('La cuenta de destino no existe');
+      if (!(monto > 0)) return falla('Cantidad no válida');
+      if (c.saldo < monto) return falla(`No te alcanza: tienes ${din(c.saldo)}`);
+      mover(deId, -monto, 'transferencia', `Transferencia a ${WD.nombreCompleto(dest)}: ${motivo}`, { con: aId }); mover(aId, monto, 'transferencia', `Transferencia de ${WD.nombreCompleto(quien)}: ${motivo}`, { con: deId });
+      html = `Enviaste <b>${din(monto)}</b> a <b>${esc(WD.nombreCompleto(dest))}</b>`;
+    } else if (tipo === 'pago') {
+      const ids = a.split(','); let pagado = 0; const hechos = [];
+      for (const rid of ids) {
+        if (rid === 'prestamo') { const pr = prestamoActivo(deId); if (!pr) continue; const ab = r2(Math.min(pr.resta, c.saldo)); if (!ab) continue; mover(deId, -ab, 'abono_prestamo', 'Abono a préstamo desde el celular'); pr.resta = r2(pr.resta - ab); if (pr.resta <= 0) { pr.estado = 'pagado'; pr.pagado = new Date().toISOString(); } pagado += ab; hechos.push(`préstamo ${din(ab)}`); continue; }
+        const r = b.recibos.find((x) => x.id === rid && x.al === deId && x.estado === 'pendiente'); if (!r) continue;
+        const tot = r2(r.monto + recargo(r)); if (c.saldo < tot) { hechos.push(`${r.nombre}: no alcanzó`); continue; }
+        mover(deId, -tot, 'servicio', `Pago de recibo: ${r.nombre}`); r.estado = 'pagado'; r.pagado = new Date().toISOString(); r.total = tot; pagado += tot; hechos.push(r.nombre);
+      }
+      if (!pagado) return falla('No se pudo pagar: revisa tu saldo o tus recibos');
+      html = `Pagaste <b>${din(pagado)}</b>: ${esc(hechos.join(', '))}`;
+    } else return falla('Código no válido');
+    b.usados.push(nonce); b.usados = b.usados.slice(-400); WD.save();
+    return { ok: true, id: deId, html: `<div class="stack" style="gap:12px"><span class="pill ok" style="font-size:16px;justify-self:start">Operación hecha</span><div style="font-size:24px;line-height:1.3">${html}</div>
+      <div><div class="label">Tu nuevo saldo</div><div class="b-saldo">${din(c.saldo)}</div></div><p class="muted" style="margin:0">${esc(WD.nombreCompleto(quien))} · ${esc(c.num)}</p></div>` };
+  }
 
   // la maestra escanea una tarjeta y se abre la cuenta
   WD.act.bEscanear = () => {
@@ -311,7 +356,7 @@
       <video class="b-video" id="esc-v"></video><p class="small muted" id="esc-msg" style="margin:0">Acerca la tarjeta a la cámara.</p>
       <div class="row"><button class="btn sm" id="esc-cam">Cambiar cámara</button><span style="flex:1"></span><form class="row" id="esc-f"><input class="in" name="n" placeholder="O escribe la cuenta: 1001" style="width:200px"><button class="btn sm">Abrir</button></form></div>`);
     const v = m.querySelector('#esc-v'); const cerrar = () => { detenerCamara(); WD.cerrarModal(); };
-    const abrir = (txt) => { const id = alumnoDeCodigo(/^\d+$/.test(txt) ? `EST-${txt}` : txt); if (!id) { m.querySelector('#esc-msg').textContent = 'Ese código no es de una cuenta de este grupo.'; return; } cerrar(); abrirCuenta(id); };
+    const abrir = async (txt) => { if (String(txt).startsWith('WDB1|')) { if (cam) cam.pausa = true; const r = await procesarSolicitud(txt); m.querySelector('#esc-msg').innerHTML = r.ok ? r.html : r.html; if (r.ok) { WD.refrescar(); } setTimeout(() => { if (cam) cam.pausa = false; }, 4000); return; } const id = alumnoDeCodigo(/^\d+$/.test(txt) ? `EST-${txt}` : txt); if (!id) { m.querySelector('#esc-msg').textContent = 'Ese código no es de una cuenta de este grupo.'; return; } cerrar(); abrirCuenta(id); };
     const go = () => iniciarCamara(v, abrir).catch((e) => { m.querySelector('#esc-msg').textContent = e.name === 'NotAllowedError' ? 'Da permiso de usar la cámara para escanear.' : e.message; });
     m.querySelector('#esc-x').onclick = cerrar; m.addEventListener('click', (e) => { if (e.target === m) detenerCamara(); });
     m.querySelector('#esc-cam').onclick = () => { camaraFrente = !camaraFrente; go(); };
@@ -329,18 +374,32 @@
       ${rs.length ? `<div class="stack" style="gap:6px"><div class="label">Recibos por pagar</div>${rs.map((r) => { const rc = recargo(r); return `<div class="row" style="font-size:17px"><span style="flex:1">${esc(r.nombre)}</span><b>${din(r.monto + rc)}</b>${rc ? '<span class="pill bad">con recargo</span>' : ''}</div>`; }).join('')}</div>` : '<div class="pill ok" style="font-size:16px;justify-self:start">No tienes recibos pendientes</div>'}
       ${ms.length ? `<div class="stack" style="gap:6px"><div class="label">Últimos movimientos</div>${ms.map((m) => `<div class="row" style="font-size:16px"><span class="muted" style="width:62px">${esc(new Date(m.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }))}</span><span style="flex:1">${esc(m.motivo)}</span><b style="color:${m.monto > 0 ? 'var(--ok)' : 'var(--bad)'}">${m.monto > 0 ? '+' : ''}${din(m.monto)}</b></div>`).join('')}</div>` : ''}</div>`;
   }
-  let ventTimer = null;
+  let ventTimer = null; let pausaHasta = 0; let ventRes = { html: '', hasta: 0 };
+  function mostrarVent(html, ms) {
+    ventRes = { html, hasta: Date.now() + ms }; pausaHasta = ventRes.hasta;
+    const box = document.getElementById('vt-res'); if (box) box.innerHTML = html;
+    clearTimeout(ventTimer); ventTimer = setTimeout(() => { const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; }, ms);
+  }
+  let leyendo = false;
+  async function lecturaVentanilla(txt) {
+    if (leyendo) return;
+    if (String(txt).startsWith('WDB1|')) {
+      leyendo = true; pausaHasta = Date.now() + 60000;
+      try { const r = await procesarSolicitud(txt); if (r.ok && WD.herrSonar) WD.herrSonar(2); mostrarVent(r.html, r.ok ? 9000 : 4000); }
+      finally { leyendo = false; }
+      return;
+    }
+    mostrarConsulta(alumnoDeCodigo(txt));
+  }
   function mostrarConsulta(id) {
     const box = document.getElementById('vt-res'); if (!box) return;
-    if (!id) { box.innerHTML = '<div class="b-espera"><p style="font-size:22px;font-weight:600;color:var(--bad);margin:0">Esa tarjeta no es de este grupo</p></div>'; }
-    else { box.innerHTML = htmlConsulta(id); if (WD.herrSonar) WD.herrSonar(1); }
-    if (cam) cam.pausa = true; clearTimeout(ventTimer);
-    ventTimer = setTimeout(() => { const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; if (cam) cam.pausa = false; }, id ? 12000 : 3000);
+    if (id && WD.herrSonar) WD.herrSonar(1);
+    mostrarVent(id ? htmlConsulta(id) : '<div class="b-espera"><p style="font-size:22px;font-weight:600;color:var(--bad);margin:0">Esa tarjeta no es de este grupo</p></div>', id ? 12000 : 3000);
   }
-  const ESPERA = '<div class="b-espera"><p style="font-size:26px;font-weight:600;margin:0">Muestra tu tarjeta a la cámara</p><p class="muted" style="margin:6px 0 0">Aquí aparecerá tu saldo.</p></div>';
+  const ESPERA = '<div class="b-espera"><p style="font-size:26px;font-weight:600;margin:0">Muestra tu tarjeta a la cámara</p><p class="muted" style="margin:6px 0 0">Aquí aparecerá tu saldo. También puedes mostrar el código de una transferencia o pago hecho en tu celular.</p></div>';
   WD.act.bVentanilla = () => { tab = 'ventanilla'; camaraFrente = true; document.body.classList.add('proyector'); WD.refrescar(); };
-  WD.act.bVentListo = () => { clearTimeout(ventTimer); const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; if (cam) cam.pausa = false; };
-  WD.act.bVentCam = () => { camaraFrente = !camaraFrente; const v = document.getElementById('vt-v'); if (v) iniciarCamara(v, (t) => mostrarConsulta(alumnoDeCodigo(t))).catch(() => {}); };
+  WD.act.bVentListo = () => { clearTimeout(ventTimer); ventRes.hasta = 0; pausaHasta = Date.now() + 1500; const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; };
+  WD.act.bVentCam = () => { camaraFrente = !camaraFrente; const v = document.getElementById('vt-v'); if (v) iniciarCamara(v, lecturaVentanilla).catch(() => {}); };
   WD.act.bVentSalir = () => { detenerCamara(); clearTimeout(ventTimer); tab = 'cuentas'; document.body.classList.remove('proyector'); WD.refrescar(); };
 
   WD.act.bProyector = () => { tab = 'proyector'; document.body.classList.add('proyector'); WD.refrescar(); };
@@ -360,7 +419,7 @@
       if ((tab === 'proyector' || tab === 'ventanilla') && !document.body.classList.contains('proyector')) { tab = 'cuentas'; detenerCamara(); }
       if (tab === 'ventanilla') return `<div class="row"><h1 style="flex:1">${esc(b.ajustes.nombre)} · Consulta tu saldo</h1><button class="btn" data-act="bVentCam">Cambiar cámara</button><button class="btn" data-act="bVentSalir">Salir</button></div>
           <div class="b-vent"><div class="card stack"><video class="b-video" id="vt-v"></video><p class="small muted" id="vt-msg" style="margin:0">Pon tu tarjeta frente a la cámara, con el código bien visible.</p></div>
-          <div class="card stack"><div id="vt-res" style="flex:1">${ESPERA}</div><button class="btn" data-act="bVentListo" style="justify-self:start;align-self:start">Siguiente alumno</button></div></div>`;
+          <div class="card stack"><div id="vt-res" style="flex:1">${Date.now() < ventRes.hasta ? ventRes.html : ESPERA}</div><button class="btn" data-act="bVentListo" style="justify-self:start;align-self:start">Siguiente alumno</button></div></div>`;
       if (tab === 'proyector') {
         const orden = als.slice().sort((x, y) => cta(y.id).saldo - cta(x.id).saldo);
         return `<div class="row"><h1 style="flex:1">${esc(b.ajustes.nombre)} · Saldos</h1><button class="btn" data-act="bSalirProyector">Salir del proyector</button></div>
@@ -383,7 +442,7 @@
           <div class="card stack"><b>Billetes</b><p class="small muted" style="margin:0">8 por hoja, de ${esc(b.ajustes.nombre)}.</p><div class="row">${['20', '50', '100', '200'].map((d) => `<button class="btn sm" data-act="bBilletes" data-d="${d}">${d}</button>`).join('')}<button class="btn sm" data-act="bBilletes" data-d="mix">Combinados</button></div></div>
           <div class="card stack" style="grid-column:1/-1"><div class="row"><b style="flex:1">Saldo en el celular del alumno</b>${b.ajustes.publico ? '<span class="pill ok">Activado</span>' : '<span class="pill">Apagado</span>'}</div>
             <p class="small muted" style="margin:0">${b.ajustes.publico ? `El alumno escanea su tarjeta con su celular y ve su saldo, sin iniciar sesión. Se actualiza solo cuando haces movimientos${WD.google.estado.modo === 'google' ? '' : ' (al entrar con Google)'}.${WD.CONFIG.googleApiKey ? '' : ' <b>Falta la clave de Drive para que el celular pueda leerlo.</b>'}` : 'Al activarlo, el código de cada tarjeta muestra el saldo en el celular del alumno sin iniciar sesión. Se publica solo su número de cuenta, primer nombre, saldo, deudas y movimientos.'}</p>
-            <div class="row">${b.ajustes.publico ? `<button class="btn sm" data-act="bPublicoAhora">Actualizar ahora</button><button class="btn sm ghost danger" data-act="bPublicoDesactivar">Quitar</button>` : '<button class="btn sm pri" data-act="bPublicoActivar">Activar</button>'}</div></div>
+            <div class="row">${b.ajustes.publico ? `<button class="btn sm" data-act="bPublicoAhora">Actualizar ahora</button><button class="btn sm" data-act="bAviso">Aviso para los alumnos</button><button class="btn sm ghost danger" data-act="bPublicoDesactivar">Quitar</button>` : '<button class="btn sm pri" data-act="bPublicoActivar">Activar</button>'}</div></div>
           <div class="card stack"><b>Tarjetas de cuenta</b><p class="small muted" style="margin:0">Nombre, número de cuenta, puesto y código QR. El alumno la muestra en «Consulta de saldo» para ver su cuenta.</p><button class="btn sm" data-act="bTarjetas" style="justify-self:start">${WD.icon('imprimir')} Imprimir tarjetas</button></div>
           <div class="card stack"><b>Contratos de apertura</b><p class="small muted" style="margin:0">Las reglas del banco con firmas del alumno, tutor y docente.</p><button class="btn sm" data-act="bContratos" style="justify-self:start">${WD.icon('imprimir')} Imprimir contratos</button></div>
           <div class="card stack"><b>Estados de cuenta</b><p class="small muted" style="margin:0">Una hoja por alumno con sus últimos movimientos.</p><button class="btn sm" data-act="bEstado" style="justify-self:start">${WD.icon('imprimir')} Imprimir todos</button></div></div>`;
@@ -402,7 +461,7 @@
     },
     after(v) {
       const vid = v.querySelector('#vt-v');
-      if (vid) iniciarCamara(vid, (t) => mostrarConsulta(alumnoDeCodigo(t))).catch((e) => { const m = v.querySelector('#vt-msg'); if (m) m.textContent = e.name === 'NotAllowedError' ? 'Da permiso de usar la cámara: toca Salir y vuelve a entrar, y acepta el permiso.' : e.message; });
+      if (vid) iniciarCamara(vid, lecturaVentanilla).catch((e) => { const m = v.querySelector('#vt-msg'); if (m) m.textContent = e.name === 'NotAllowedError' ? 'Da permiso de usar la cámara: toca Salir y vuelve a entrar, y acepta el permiso.' : e.message; });
       else detenerCamara();
     },
   };
