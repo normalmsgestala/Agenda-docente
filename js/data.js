@@ -51,6 +51,7 @@
       calendario: { preset: '', eventos: [], valores: {} },
       juntas: [],
       diagnosticos: [],
+      banco: null,
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
