@@ -17,6 +17,7 @@
     ajustes: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
     pronto: 'M12 6v6l4 2M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0',
     juntas: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20v-1a5 5 0 0 1 9-3M13 16a5 5 0 0 1 9 3v1M12 20v-1a4 4 0 0 1 8 0',
+    herramientas: 'M12 8v4l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 2h6',
     calendario: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4',
     menu: 'M4 6h16M4 12h16M4 18h16',
     descargar: 'M12 4v11M7 10l5 5 5-5M5 20h14',
@@ -35,9 +36,10 @@
     { id: 'evaluacion', t: 'Evaluación' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
     { id: 'incidencias', t: 'Incidencias' }, { id: 'calendario', t: 'Calendario y CTE' },
     { id: 'juntas', t: 'Juntas con padres' },
+    { id: 'herramientas', t: 'Herramientas de aula' },
   ];
   const NAV2 = [{ id: 'escuela', t: 'Escuela' }, { id: 'ajustes', t: 'Ajustes' }];
-  const PRONTO = ['Control administrativo', 'Banco Estala', 'IDAI / ICE', 'Tómbola', 'Herramientas de aula', 'Comunicación con familias', 'Comisiones y cumpleaños'];
+  const PRONTO = ['Control administrativo', 'Banco Estala', 'IDAI / ICE', 'Tómbola', 'Comunicación con familias', 'Comisiones y cumpleaños'];
   WD.PRONTO = PRONTO;
 
   /* ---------- tema ---------- */
@@ -46,7 +48,7 @@
   /* ---------- ruta ---------- */
   WD.ruta = () => { const h = (location.hash || '').replace('#', ''); return WD.views[h] ? h : 'inicio'; };
   WD.ir = (id) => { if (location.hash !== '#' + id) location.hash = id; else WD.render(); window.scrollTo(0, 0); };
-  window.addEventListener('hashchange', () => { WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
 
   /* ---------- render principal ---------- */
   const root = () => document.getElementById('app');
@@ -142,7 +144,7 @@
     const f = e.target.closest('[data-form]'); if (!f) return;
     e.preventDefault(); const fn = WD.act['form_' + f.dataset.form]; if (fn) fn(f, e);
   });
-  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (document.getElementById('modal')) return WD.cerrarModal(); if (document.getElementById('drawer')) return WD.act.cerrarDrawer(); WD.petCerrar(); });
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (document.getElementById('modal')) return WD.cerrarModal(); if (document.getElementById('drawer')) return WD.act.cerrarDrawer(); if (document.body.classList.contains('proyector')) { document.body.classList.remove('proyector'); return WD.refrescar(); } WD.petCerrar(); });
 
   WD.act.form_bienvenida = (f) => { const n = f.nombre.value.trim(); if (!n) return; WD.state.docente.nombre = n; WD.save(); WD.render(); setTimeout(() => WD.petAbrir(true), 400); };
   WD.act.entrarGoogle = async (el) => {
@@ -246,6 +248,7 @@
     { k: 'logo escuela cct zona director membrete', t: 'Datos de la escuela', to: 'escuela' },
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
+    { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
     { k: 'calendario cte consejo tecnico vacaciones sin clases fechas registro calificaciones', t: 'Calendario y CTE', to: 'calendario' },
     { k: 'gemini ia clave conectar', t: 'Conectar Gemini', to: 'ajustes' },
     { k: 'oscuro claro tema mascota cambiar', t: 'Tema y mascota', to: 'ajustes' },
