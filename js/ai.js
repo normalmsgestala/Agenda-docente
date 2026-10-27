@@ -168,6 +168,17 @@ Resume cada parte en viñetas cortas separadas por saltos de línea (máximo 4),
     if (!planes.length) throw new Error(errores.length ? errores[0].error : 'No encontré sesiones en el documento.');
     return { planes, doc, errores: errores.map((e) => e.campo) };
   }
+  /* ---------- apunte para el cuaderno (exposición a los alumnos) ---------- */
+  async function apunteSesion(s, grado) {
+    const txt = [`Campo formativo: ${s.campo}`, `Proyecto: ${s.proyecto}`, `Fase: ${s.faseProyecto || ''}`, s.contenido ? `Contenido: ${s.contenido}` : '', (s.pdaTexto || []).length ? `PDA: ${s.pdaTexto.join(' | ')}` : `PDA: ${s.pda || ''}`,
+      s.pregunta ? `Pregunta detonadora: ${s.pregunta}` : '', `Inicio: ${s.inicio || ''}`, `Desarrollo: ${s.desarrollo || ''}`, `Cierre: ${s.cierre || ''}`, s.tarea && s.tarea !== '—' ? `Tarea: ${s.tarea}` : ''].filter(Boolean).join('\n');
+    const out = await generar([{ text: `Eres docente de ${grado || 'primaria'} en México. Con la sesión de abajo, prepara lo que se proyecta a los alumnos para que lo copien en su libreta en vez de escribirlo en el pizarrón.
+Lenguaje claro para niños de esa edad, frases cortas, sin tecnicismos, sin nombres de alumnos ni instrucciones para el docente.
+Devuelve JSON {"titulo":"título corto para la libreta","aprenderemos":"una frase: hoy aprenderemos a… (PDA en palabras de niño)","ideas":["3 a 5 ideas clave o conceptos para copiar, cada una de máximo 20 palabras"],"actividad":"qué harán en la libreta o el libro, en una o dos frases","preguntas":["1 a 3 preguntas para responder en la libreta"]}
+${txt}` }], { json: true, temperatura: 0.4, maxTokens: 2048 });
+    return { titulo: out.titulo || s.titulo || '', aprenderemos: out.aprenderemos || '', ideas: (out.ideas || []).slice(0, 6), actividad: out.actividad || '', preguntas: (out.preguntas || []).slice(0, 4) };
+  }
+
   async function detalleSesion(doc, s) {
     const out = await generar(conDocumento(doc, PROMPT_DETALLE(s)), { json: true, temperatura: 0.1, maxTokens: 4096, espera: 90000 });
     return { inicio: out.inicio || '', desarrollo: out.desarrollo || '', cierre: out.cierre || '', recursos: out.recursos || '', evidencias: out.evidencias || '', ajustes: out.ajustes || '' };
@@ -206,6 +217,7 @@ Devuelve JSON {"gravedad":"leve|moderada|grave","hechos":"I. Descripción formal
 - Calendario y CTE: calendario escolar SEP precargado (días sin clases, vacaciones, registro de calificaciones, valor del mes), fechas propias y registro de cada sesión de Consejo Técnico (temas, acuerdos, acciones para el grupo, pendientes) que se imprime.
 - Juntas con padres: juntas de grupo con lista de asistencia de tutores (un toque), notas, acuerdos, acta redactada con IA, impresión del acta y de la lista para firmas; entrevistas individuales con cada familia y su registro; tabla de asistencia de tutores por junta.
 - Herramientas de aula (para proyector): temporizador con sonido, semáforo de ruido con el micrófono o manual, alumno al azar sin repetir y sin los que faltaron, y hacer equipos al azar por número de equipos o de integrantes (se pueden imprimir). Botón "Modo proyector" para pantalla limpia.
+- Exposición para los alumnos: en Inicio, al abrir una sesión de la planeación, el botón «Exposición para los alumnos» la proyecta en pantalla completa: portada con la pregunta del proyecto, qué vamos a aprender (contenido y PDA), apunte para la libreta y actividad con preguntas. La IA prepara el apunte y el docente lo puede editar. Se avanza tocando la pantalla o con las flechas.
 - Tómbola: juego para el proyector por grado (1º primaria a 3º secundaria) con lotería de números, abecedario con palabra y sílabas, y desafío de cálculo mental; con voz y registro de lo que ya salió.
 - Control administrativo: tabla de entregas mensuales a la dirección (planeación con Vo. Bo., programa analítico, reporte de asistencia, producto del CTE, registro de calificaciones y comunicación de resultados en noviembre, marzo y julio, reporte a UDEI, avance de lectura); se marca con un toque y guarda la fecha; lo pendiente del mes aparece en Inicio. También registro de visitas de dirección y supervisión con aspectos observados y recomendaciones; Excel e impresión.
 - Banco Estala: economía del aula. Cada alumno tiene cuenta (se abre sola con saldo inicial). Botones Abonar y Cobrar (a uno, varios o todos, con motivos rápidos), Transferir entre alumnos, Pagar sueldos (según puesto y sueldo de cada cuenta), Cobro semanal de servicios (directo o con recibos que generan recargo si se atrasan), préstamos de hasta 20 que se descuentan solos de lo que gane. Imprime billetes, tarjetas de cuenta, contratos y estados de cuenta; muestra saldos en el proyector; descarga Excel.
@@ -227,5 +239,5 @@ ${contexto}`;
     return generar(parts, { sistema, temperatura: 0.7, maxTokens: 1024 });
   }
 
-  WD.ai = { tieneClave, pareceClave, conectar, generar, anonimizar, leerPlaneacion, detalleSesion, evaluarFoto, redactarIncidencia, preguntarMascota, AYUDA_APP };
+  WD.ai = { tieneClave, pareceClave, conectar, generar, anonimizar, leerPlaneacion, detalleSesion, apunteSesion, evaluarFoto, redactarIncidencia, preguntarMascota, AYUDA_APP };
 })(window.WD);

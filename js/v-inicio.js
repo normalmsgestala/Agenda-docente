@@ -94,6 +94,7 @@
     const bloque = (t, v) => v ? `<div class="stack"><div class="label">${t}</div><div class="prose">${esc(v)}</div></div>` : '';
     WD.abrirDrawer(ses.titulo || ses.proyecto || 'Sesión', `
       <div class="row"><span class="pill acc">${esc(WD.CAMPO_CORTO[ses.campo])}</span>${ses.faseProyecto ? `<span class="pill">${esc(ses.faseProyecto)}</span>` : ''}${ses.paginas ? `<span class="pill">Págs. ${esc(ses.paginas)}</span>` : ''}${ses.pda ? `<span class="pill">${esc(ses.pda)}</span>` : ''}</div>
+      <button class="btn pri" data-act="exposicion" data-id="${ses.id}" style="justify-self:start">${WD.icon('proyector')} Exposición para los alumnos</button>
       ${ses.proyecto ? `<p class="small muted">Proyecto: ${esc(ses.proyecto)} · ${esc(plan.nombre)}</p>` : ''}
       ${ses.detalle === false ? `<div id="ses-detalle" class="row"><span class="spinner"></span><span class="small muted">Leyendo inicio, desarrollo y cierre de esta sesión…</span></div>` : ''}
       ${bloque('Inicio', ses.inicio)}${bloque('Desarrollo', ses.desarrollo)}${bloque('Cierre', ses.cierre)}

@@ -13,6 +13,13 @@
   const campoDe = (s) => { const n = WD.norm(s); return WD.CAMPOS.find((c) => n.startsWith(WD.norm(c).slice(0, 6))) || null; };
   const instrumentoDe = (s) => /r[uú]brica|escala/i.test(s) ? 'rubrica' : 'cotejo';
 
+  // PDA de la sesión: «C1 (P1, P2)» → textos del contenido y de cada PDA del proyecto
+  function metaSesion(meta, ref) {
+    const cs = [...ref.matchAll(/C(\d+)/g)].map((m) => 'C' + m[1]); const ps = [...ref.matchAll(/P(\d+)/g)].map((m) => 'P' + m[1]);
+    return { contenido: (cs.length ? cs : Object.keys(meta.contenidos)).map((k) => meta.contenidos[k]).filter(Boolean).join('\n'),
+      pdaTexto: (ps.length ? ps : Object.keys(meta.pdas)).map((k) => meta.pdas[k] ? `${k}: ${meta.pdas[k]}` : '').filter(Boolean), pregunta: meta.pregunta || '' };
+  }
+
   WD.leerPlaneacionDocx = async function (file) {
     const z = await WD.unzip(await file.arrayBuffer());
     if (!z['word/document.xml']) return null;
@@ -21,6 +28,7 @@
     let anioIni = new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
     let nombrePlan = file.name.replace(/\.[^.]+$/, ''), periodo = '';
     let proyecto = '', instrumentoTxt = '', pendientes = [], esperandoCriterios = false;
+    let meta = { contenidos: {}, pdas: {}, pregunta: '' };
     const sesiones = [];
 
     for (const el of Array.from(body.childNodes)) {
@@ -39,6 +47,13 @@
       const mp = plano.match(/(Planeaci[oó]n\s+\d+)/i); if (mp && !sesiones.length && !pendientes.length) nombrePlan = mp[1].replace(/planeacion/i, 'Planeación');
       const mper = plano.match(/Periodo\s*:\s*([^\n]+)/i); if (mper && !periodo) periodo = mper[1].trim();
       const mproy = plano.match(/Nombre del proyecto\s*:\s*«([^»]+)»/i); if (mproy) proyecto = mproy[1].trim();
+      // Datos del proyecto: contenidos (C1: …), PDA (P1: …) y pregunta detonadora
+      if (/^\s*PDA\s*:/im.test(plano) && /^\s*C\d+\s*:/m.test(plano)) {
+        meta = { contenidos: {}, pdas: {}, pregunta: '' };
+        for (const m of plano.matchAll(/^\s*C(\d+)\s*:\s*(.+)$/gm)) meta.contenidos['C' + m[1]] = m[2].trim();
+        for (const m of plano.matchAll(/^\s*P(\d+)\s*:\s*(.+)$/gm)) meta.pdas['P' + m[1]] = m[2].trim();
+      }
+      const mpreg = plano.match(/Pregunta detonadora\s*:\s*([^\n]+)/i); if (mpreg && !meta.pregunta) { const q = mpreg[1].match(/¿[^?]*\?/); meta.pregunta = (q ? q[0] : mpreg[1]).trim(); }
       // Tabla de una sesión
       if (WD.norm(fs[0][0]) === 'sesion' && fs.length >= 4) {
         const [s0, tema = '', fase = '', campoTxt = ''] = fs[1];
@@ -60,7 +75,7 @@
           pda: quitar(temaLineas.find((x) => /PDA/i.test(x)) || '', 'Contenido/PDA'),
           paginas: buscar('Pág. libro'), inicio: col('inicio'), desarrollo: col('desarrollo'), cierre: col('cierre'),
           recursos: col('materiales'), evidencias: evaluacion.replace(/\((r[uú]brica|lista de cotejo|escala[^)]*)\)/ig, '').trim(),
-          ajustes: buscar('Ajustes razonables'), tarea: buscar('Tarea'), instrumento: instrumentoDe(evaluacion), criterios: [], detalle: true,
+          ajustes: buscar('Ajustes razonables'), tarea: buscar('Tarea'), ...metaSesion(meta, temaLineas.find((x) => /PDA/i.test(x)) || ''), instrumento: instrumentoDe(evaluacion), criterios: [], detalle: true,
         };
         // Título: proyecto · fase de la sesión (ej. «¡Con pan, festejamos!» · Lo que sabemos)
         const faseCorta = (fase.split(',')[0] || '').trim();
