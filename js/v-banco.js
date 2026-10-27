@@ -202,7 +202,7 @@
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" width="${px}" height="${px}" shape-rendering="crispEdges" role="img" aria-label="Código QR ${esc(txt)}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   };
-  const codigoQR = (c) => `WDB:${c.num}`;
+  const codigoQR = (c) => `${location.origin}${location.pathname}#cuenta/${c.num}`;
   WD.act.bTarjetas = () => {
     const b = B(); const e = WD.state.escuela;
     WD.vistaDocumento('Tarjetas de cuenta', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${WD.alumnosActivos().map((a) => { const c = cta(a.id); return `<div style="border:1.5px solid #333;border-radius:10px;padding:12px 14px;height:150px;display:grid;grid-template-columns:1fr auto;gap:10px;page-break-inside:avoid">
@@ -210,7 +210,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b style="font-size:13pt">${esc(b.ajustes.nombre)}</b><span style="font-size:9pt">${esc(String(e.grado || '').replace(/°+$/, ''))}° ${esc(e.grupo || '')}</span></div>
         <div style="font-family:monospace;font-size:15pt;letter-spacing:.1em">${esc(c.num)}</div>
         <div><div style="font-size:10.5pt;font-weight:700;line-height:1.2">${esc(WD.nombreCompleto(a).toUpperCase())}</div><div style="font-size:8pt">${esc(c.puesto || 'Cuentahabiente')} · Ciclo ${esc(e.ciclo || '')}</div></div></div>
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">${qrSVG(codigoQR(c), 100)}<span style="font-size:7pt">Escanea para ver tu saldo</span></div></div>`; }).join('')}</div>`);
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">${qrSVG(codigoQR(c), 112)}<span style="font-size:7pt">Escanea para ver tu saldo</span></div></div>`; }).join('')}</div>`);
   };
   WD.act.bContratos = () => {
     const b = B().ajustes; const d = WD.state.docente;

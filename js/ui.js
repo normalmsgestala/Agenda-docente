@@ -56,10 +56,22 @@
   WD.ir = (id) => { if (location.hash !== '#' + id) location.hash = id; else WD.render(); window.scrollTo(0, 0); };
   window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
 
+  WD.act.qrMaestro = () => { WD.vistaQR = true; WD.render(); };
   /* ---------- render principal ---------- */
   const root = () => document.getElementById('app');
   WD.render = function () {
     WD.aplicarTema();
+    const qr = /^#cuenta\/(EST-\d+)/i.exec(location.hash || '');
+    if (qr) {
+      const dentro = (!WD.google.configurado() || WD.google.estado.modo === 'google' || WD.sinConexion) && WD.state.docente.nombre;
+      const id = dentro && WD.state.banco && Object.keys(WD.state.banco.cuentas || {}).find((k) => WD.state.banco.cuentas[k].num === qr[1].toUpperCase());
+      if (id) { history.replaceState(null, '', '#banco'); WD.render(); WD.act.bCuenta && WD.act.bCuenta({ dataset: { al: id } }); return; }
+      if (!WD.vistaQR) { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center">
+        <div class="label">Banco Estala</div><div style="font-family:monospace;font-size:28px;letter-spacing:.1em">${esc(qr[1].toUpperCase())}</div>
+        <p style="margin:0">Esta es tu tarjeta de cuenta. Para ver tu saldo, muéstrala a la cámara en la <b>Consulta de saldo</b> del salón.</p>
+        <p class="small muted" style="margin:0">Tus datos se guardan solo en la cuenta de tu maestro.</p>
+        <button class="btn" data-act="qrMaestro">Soy el maestro, entrar</button></div></div>`; return; }
+    }
     if (WD.google.configurado() && WD.google.estado.modo !== 'google' && !WD.sinConexion) { root().innerHTML = WD.pantallaLogin(); return; }
     if (!WD.state.docente.nombre) { root().innerHTML = WD.bienvenida(); return; }
     if (WD.necesitaAsistente()) { WD.enAsistente = true; WD.repintarAsistente(); return; }
