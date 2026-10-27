@@ -16,7 +16,7 @@
   const LETRAS = { A: ['Avión', 'A-vión'], B: ['Ballena', 'Ba-lle-na'], C: ['Conejo', 'Co-ne-jo'], D: ['Delfín', 'Del-fín'], E: ['Elote', 'E-lo-te'], F: ['Flor', 'Flor'], G: ['Gato', 'Ga-to'], H: ['Helado', 'He-la-do'], I: ['Isla', 'Is-la'], J: ['Jirafa', 'Ji-ra-fa'], K: ['Koala', 'Ko-a-la'], L: ['León', 'Le-ón'], M: ['Manzana', 'Man-za-na'], N: ['Nube', 'Nu-be'], 'Ñ': ['Ñandú', 'Ñan-dú'], O: ['Oso', 'O-so'], P: ['Perro', 'Pe-rro'], Q: ['Queso', 'Que-so'], R: ['Rana', 'Ra-na'], S: ['Sol', 'Sol'], T: ['Taco', 'Ta-co'], U: ['Uva', 'U-va'], V: ['Vaca', 'Va-ca'], W: ['Waffle', 'Wa-ffle'], X: ['Xilófono', 'Xi-ló-fo-no'], Y: ['Yoyó', 'Yo-yó'], Z: ['Zanahoria', 'Za-na-ho-ria'] };
   const NOMBRES = ['', 'Uno', 'Dos', 'Tres', 'Cuatro', 'Cinco', 'Seis', 'Siete', 'Ocho', 'Nueve', 'Diez', 'Once', 'Doce', 'Trece', 'Catorce', 'Quince', 'Dieciséis', 'Diecisiete', 'Dieciocho', 'Diecinueve', 'Veinte', 'Veintiuno', 'Veintidós', 'Veintitrés', 'Veinticuatro', 'Veinticinco', 'Veintiséis', 'Veintisiete', 'Veintiocho', 'Veintinueve', 'Treinta', 'Treinta y uno', 'Treinta y dos'];
   const MODOS = { numeros: 'Lotería numérica', letras: 'Abecedario', calculo: 'Desafío de cálculo' };
-  const S = { grado: null, modo: null, pool: [], salieron: [], actual: null, op: '', respuesta: false, girando: false, voz: true };
+  const S = { grado: null, modo: null, pool: [], salieron: [], actual: null, op: '', respuesta: false, girando: false, voz: true, verReg: false };
   const rnd = (n) => Math.floor(Math.random() * n);
   const gradoDeEscuela = () => { const n = parseInt(WD.state.escuela.grado, 10); return n >= 1 && n <= 6 ? `prim_${n}` : 'prim_4'; };
 
@@ -61,13 +61,14 @@
     S.modo = modo; const tam = S.grado === 'prim_1' && modo === 'numeros' ? 10 : 32;
     const lista = modo === 'letras' ? Object.keys(LETRAS) : Array.from({ length: tam }, (_, i) => i + 1);
     for (let i = lista.length - 1; i > 0; i--) { const j = rnd(i + 1); [lista[i], lista[j]] = [lista[j], lista[i]]; }
-    S.pool = lista; S.salieron = []; S.actual = null; S.op = ''; S.respuesta = false;
+    S.pool = lista; S.salieron = []; S.verReg = false; S.actual = null; S.op = ''; S.respuesta = false;
     if (modo !== 'calculo') hablar(`¡Hola! Vamos a jugar ${MODOS[modo]}.`);
   }
   WD.act.tbGrado = (el) => { S.grado = el.value; };
   WD.act.tbModo = (el) => { S.grado = S.grado || gradoDeEscuela(); iniciar(el.dataset.m); WD.refrescar(); };
   WD.act.tbMenu = () => { S.modo = null; if (window.speechSynthesis) speechSynthesis.cancel(); WD.refrescar(); };
   WD.act.tbReiniciar = () => { iniciar(S.modo); WD.refrescar(); };
+  WD.act.tbReg = () => { S.verReg = !S.verReg; WD.refrescar(); };
   WD.act.tbVoz = () => { S.voz = !S.voz; if (!S.voz && window.speechSynthesis) speechSynthesis.cancel(); WD.refrescar(); };
   WD.act.tbRespuesta = () => { S.respuesta = true; WD.refrescar(); hablar(`El resultado es ${S.actual}`); };
   WD.act.tbGirar = () => {
@@ -101,7 +102,8 @@
           <button class="btn sm" data-act="tbVoz">${S.voz ? 'Voz activada' : 'Voz apagada'}</button><button class="btn sm" data-act="tbReiniciar">Reiniciar</button><button class="btn sm ${pro ? 'pri' : ''}" data-act="proyector">${pro ? 'Salir del proyector' : 'Proyector'}</button></div>
         <div class="card tb-centro">${centro}</div>
         <div class="row" style="justify-content:center"><button class="btn pri tb-girar" data-act="tbGirar" ${S.girando || !S.pool.length ? 'disabled' : ''}>${S.pool.length ? '¡Girar!' : '¡Lotería!'}</button></div>
-        <div class="tb-reg">${total.map((x) => `<span class="${S.salieron.includes(x) ? 'on' : ''}">${x}</span>`).join('')}</div>`;
+        <div class="row" style="justify-content:center"><button class="btn sm" data-act="tbReg" ${S.salieron.length ? '' : 'disabled'}>${S.verReg ? 'Ocultar los que salieron' : `Ver los que salieron (${S.salieron.length})`}</button></div>
+        ${S.verReg ? `<div class="tb-reg">${total.map((x) => `<span class="${S.salieron.includes(x) ? 'on' : ''}">${x}</span>`).join('')}</div>` : ''}`;
     },
     after(v) { v.querySelector('#tb-grado')?.addEventListener('change', (e) => { S.grado = e.target.value; WD.refrescar(); }); if (window.speechSynthesis) speechSynthesis.getVoices(); },
   };
