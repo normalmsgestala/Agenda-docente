@@ -283,6 +283,22 @@ body.proyector .equipo { font-size: 19px; }
 .tb-reg span.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 body.proyector .tb-centro { min-height: calc(100vh - 300px); }
 
+
+/* ---------- IDAI / ICE ---------- */
+.dg-letras { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; }
+.dg-letras button { aspect-ratio: 1; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 9px; font: 600 15px/1 inherit; font-family: inherit; cursor: pointer; }
+.dg-letras button.on { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.dg-its { display: flex; flex-wrap: wrap; gap: 6px; }
+.dg-it { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 99px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.dg-it.on { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.dg-it.no { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); text-decoration: line-through; }
+.dg-bar { display: grid; grid-template-columns: 150px 1fr 28px; gap: 10px; align-items: center; }
+.dg-bar > div { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.dg-bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.dg-bar i.ok { background: var(--ok); } .dg-bar i.warn { background: var(--warn); } .dg-bar i.bad { background: var(--bad); }
+.dg-ap { font: inherit; color: var(--ink); cursor: pointer; text-align: left; width: 100%; }
+.dg-ap:hover { border-color: var(--line-2); }
+
 /* ---------- impresión (formatos oficiales) ---------- */
 #print-area { display: none; }
 .doc { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11.5pt; line-height: 1.45; }

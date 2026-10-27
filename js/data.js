@@ -50,6 +50,7 @@
       incidencias: [],
       calendario: { preset: '', eventos: [], valores: {} },
       juntas: [],
+      diagnosticos: [],
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
