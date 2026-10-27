@@ -300,6 +300,12 @@ body.proyector .tb-centro { min-height: calc(100vh - 300px); }
 .dg-ap:hover { border-color: var(--line-2); }
 
 /* ---------- banco ---------- */
+.b-vent { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.b-video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #000; border-radius: 12px; }
+.b-video.espejo { transform: scaleX(-1); }
+.b-saldo { font-size: clamp(48px, 7vw, 80px); font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--accent); }
+.b-espera { min-height: 260px; display: grid; place-content: center; text-align: center; }
+@media (max-width: 760px) { .b-vent { grid-template-columns: minmax(0, 1fr); } }
 .b-proy { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 
 /* ---------- impresión (formatos oficiales) ---------- */

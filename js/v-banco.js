@@ -196,12 +196,21 @@
         <p style="text-align:right;font-size:13pt"><b>Saldo actual: ${din(c.saldo)}</b>${debe(id) ? ` · Adeudo: ${din(debe(id))}` : ''}</p></div>`; }).join('');
     WD.vistaDocumento('Estado de cuenta', html);
   };
+  const qrSVG = (txt, px = 96) => {
+    if (typeof window.qrcode !== 'function') return '';
+    const q = window.qrcode(0, 'M'); q.addData(txt); q.make(); const n = q.getModuleCount(); const m = 2; let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" width="${px}" height="${px}" shape-rendering="crispEdges" role="img" aria-label="Código QR ${esc(txt)}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  };
+  const codigoQR = (c) => `WDB:${c.num}`;
   WD.act.bTarjetas = () => {
     const b = B(); const e = WD.state.escuela;
-    WD.vistaDocumento('Tarjetas de cuenta', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${WD.alumnosActivos().map((a) => { const c = cta(a.id); return `<div style="border:1.5px solid #333;border-radius:10px;padding:12px 14px;height:150px;display:flex;flex-direction:column;justify-content:space-between;page-break-inside:avoid">
-      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13pt">${esc(b.ajustes.nombre)}</b><span style="font-size:9pt">${esc(e.grado || '')}° ${esc(e.grupo || '')}</span></div>
-      <div style="font-family:monospace;font-size:16pt;letter-spacing:.12em">${esc(c.num)}</div>
-      <div><div style="font-size:11pt;font-weight:700">${esc(WD.nombreCompleto(a).toUpperCase())}</div><div style="font-size:8.5pt">${esc(c.puesto || 'Cuentahabiente')} · Ciclo ${esc(e.ciclo || '')}</div></div></div>`; }).join('')}</div>`);
+    WD.vistaDocumento('Tarjetas de cuenta', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${WD.alumnosActivos().map((a) => { const c = cta(a.id); return `<div style="border:1.5px solid #333;border-radius:10px;padding:12px 14px;height:150px;display:grid;grid-template-columns:1fr auto;gap:10px;page-break-inside:avoid">
+      <div style="display:flex;flex-direction:column;justify-content:space-between;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b style="font-size:13pt">${esc(b.ajustes.nombre)}</b><span style="font-size:9pt">${esc(String(e.grado || '').replace(/°+$/, ''))}° ${esc(e.grupo || '')}</span></div>
+        <div style="font-family:monospace;font-size:15pt;letter-spacing:.1em">${esc(c.num)}</div>
+        <div><div style="font-size:10.5pt;font-weight:700;line-height:1.2">${esc(WD.nombreCompleto(a).toUpperCase())}</div><div style="font-size:8pt">${esc(c.puesto || 'Cuentahabiente')} · Ciclo ${esc(e.ciclo || '')}</div></div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">${qrSVG(codigoQR(c), 100)}<span style="font-size:7pt">Escanea para ver tu saldo</span></div></div>`; }).join('')}</div>`);
   };
   WD.act.bContratos = () => {
     const b = B().ajustes; const d = WD.state.docente;
@@ -230,6 +239,70 @@
     const h2 = [['Fecha', 'Alumno', 'Tipo', 'Concepto', 'Importe', 'Saldo']].concat(b.movs.map((m) => [new Date(m.fecha).toLocaleString('es-MX'), nom(m.al), m.tipo, m.motivo, m.monto, m.saldo]));
     WD.download(await WD.xlsxBlob([{ name: 'Saldos', rows: h1, widths: [5, 32, 11, 26, 9, 10, 10] }, { name: 'Movimientos', rows: h2, widths: [18, 30, 14, 50, 10, 10] }]), `${b.ajustes.nombre.replace(/\s+/g, '_')}.xlsx`);
   };
+  /* ---------- lector de QR (cámara) ---------- */
+  const cargarLector = () => (window.jsQR ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = `js/lib/jsQR.js?v=${WD.VERSION}`; s.onload = res; s.onerror = () => rej(new Error('No pude cargar el lector de códigos.')); document.head.appendChild(s); }));
+  let cam = null; let camaraFrente = true;
+  async function iniciarCamara(video, alLeer) {
+    detenerCamara();
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Este navegador no permite usar la cámara aquí.');
+    await cargarLector();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camaraFrente ? 'user' : 'environment', width: { ideal: 1280 } }, audio: false });
+    video.setAttribute('playsinline', ''); video.classList.toggle('espejo', camaraFrente); video.muted = true; video.srcObject = stream; await video.play().catch(() => {});
+    const cv = document.createElement('canvas'); const ctx = cv.getContext('2d', { willReadFrequently: true });
+    const yo = { stream, activo: true, pausa: false, t: 0 }; cam = yo;
+    const leer = () => {
+      if (!yo.activo || !video.isConnected) { if (cam === yo) detenerCamara(); return; }
+      if (!yo.pausa && video.readyState >= 2 && video.videoWidth) {
+        const k = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight)); cv.width = (video.videoWidth * k) | 0; cv.height = (video.videoHeight * k) | 0;
+        ctx.drawImage(video, 0, 0, cv.width, cv.height); const r = window.jsQR(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'attemptBoth' });
+        if (r && r.data) alLeer(r.data);
+      }
+      yo.t = setTimeout(leer, 160);
+    };
+    leer(); return yo;
+  }
+  function detenerCamara() { if (!cam) return; cam.activo = false; clearTimeout(cam.t); cam.stream.getTracks().forEach((t) => t.stop()); cam = null; }
+  window.addEventListener('hashchange', detenerCamara);
+  const alumnoDeCodigo = (txt) => { const m = /EST-?\s*(\d+)/i.exec(String(txt || '')); if (!m) return null; const num = `EST-${m[1]}`; const id = Object.keys(B().cuentas).find((k) => B().cuentas[k].num === num); return id && WD.state.alumnos.find((a) => a.id === id && a.activo !== false) ? id : null; };
+
+  // la maestra escanea una tarjeta y se abre la cuenta
+  WD.act.bEscanear = () => {
+    const m = WD.modal(`<div class="row"><h2 style="flex:1">Escanear tarjeta</h2><button class="x" id="esc-x" aria-label="Cerrar">×</button></div>
+      <video class="b-video" id="esc-v"></video><p class="small muted" id="esc-msg" style="margin:0">Acerca la tarjeta a la cámara.</p>
+      <div class="row"><button class="btn sm" id="esc-cam">Cambiar cámara</button><span style="flex:1"></span><form class="row" id="esc-f"><input class="in" name="n" placeholder="O escribe la cuenta: 1001" style="width:200px"><button class="btn sm">Abrir</button></form></div>`);
+    const v = m.querySelector('#esc-v'); const cerrar = () => { detenerCamara(); WD.cerrarModal(); };
+    const abrir = (txt) => { const id = alumnoDeCodigo(/^\d+$/.test(txt) ? `EST-${txt}` : txt); if (!id) { m.querySelector('#esc-msg').textContent = 'Ese código no es de una cuenta de este grupo.'; return; } cerrar(); abrirCuenta(id); };
+    const go = () => iniciarCamara(v, abrir).catch((e) => { m.querySelector('#esc-msg').textContent = e.name === 'NotAllowedError' ? 'Da permiso de usar la cámara para escanear.' : e.message; });
+    m.querySelector('#esc-x').onclick = cerrar; m.addEventListener('click', (e) => { if (e.target === m) detenerCamara(); });
+    m.querySelector('#esc-cam').onclick = () => { camaraFrente = !camaraFrente; go(); };
+    m.querySelector('#esc-f').onsubmit = (e) => { e.preventDefault(); abrir(e.target.n.value.trim()); };
+    camaraFrente = false; go();
+  };
+
+  // ventanilla: los alumnos muestran su tarjeta y ven su cuenta
+  function htmlConsulta(id) {
+    const a = WD.state.alumnos.find((x) => x.id === id); const c = cta(id); const p = prestamoActivo(id); const rs = recibosDe(id);
+    const ms = B().movs.filter((m) => m.al === id && m.monto).slice(-5).reverse();
+    return `<div class="stack" style="gap:14px"><div><div class="label">${esc(c.num)}${c.puesto ? ` · ${esc(c.puesto)}` : ''}</div><div style="font-size:30px;font-weight:700;line-height:1.15">${esc(WD.nombreCompleto(a))}</div></div>
+      <div><div class="label">Tu saldo</div><div class="b-saldo">${din(c.saldo)}</div></div>
+      ${p ? `<div class="pill bad" style="font-size:16px;justify-self:start">Préstamo: debes ${din(p.resta)}</div>` : ''}
+      ${rs.length ? `<div class="stack" style="gap:6px"><div class="label">Recibos por pagar</div>${rs.map((r) => { const rc = recargo(r); return `<div class="row" style="font-size:17px"><span style="flex:1">${esc(r.nombre)}</span><b>${din(r.monto + rc)}</b>${rc ? '<span class="pill bad">con recargo</span>' : ''}</div>`; }).join('')}</div>` : '<div class="pill ok" style="font-size:16px;justify-self:start">No tienes recibos pendientes</div>'}
+      ${ms.length ? `<div class="stack" style="gap:6px"><div class="label">Últimos movimientos</div>${ms.map((m) => `<div class="row" style="font-size:16px"><span class="muted" style="width:62px">${esc(new Date(m.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }))}</span><span style="flex:1">${esc(m.motivo)}</span><b style="color:${m.monto > 0 ? 'var(--ok)' : 'var(--bad)'}">${m.monto > 0 ? '+' : ''}${din(m.monto)}</b></div>`).join('')}</div>` : ''}</div>`;
+  }
+  let ventTimer = null;
+  function mostrarConsulta(id) {
+    const box = document.getElementById('vt-res'); if (!box) return;
+    if (!id) { box.innerHTML = '<div class="b-espera"><p style="font-size:22px;font-weight:600;color:var(--bad);margin:0">Esa tarjeta no es de este grupo</p></div>'; }
+    else { box.innerHTML = htmlConsulta(id); if (WD.herrSonar) WD.herrSonar(1); }
+    if (cam) cam.pausa = true; clearTimeout(ventTimer);
+    ventTimer = setTimeout(() => { const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; if (cam) cam.pausa = false; }, id ? 12000 : 3000);
+  }
+  const ESPERA = '<div class="b-espera"><p style="font-size:26px;font-weight:600;margin:0">Muestra tu tarjeta a la cámara</p><p class="muted" style="margin:6px 0 0">Aquí aparecerá tu saldo.</p></div>';
+  WD.act.bVentanilla = () => { tab = 'ventanilla'; camaraFrente = true; document.body.classList.add('proyector'); WD.refrescar(); };
+  WD.act.bVentListo = () => { clearTimeout(ventTimer); const bx = document.getElementById('vt-res'); if (bx) bx.innerHTML = ESPERA; if (cam) cam.pausa = false; };
+  WD.act.bVentCam = () => { camaraFrente = !camaraFrente; const v = document.getElementById('vt-v'); if (v) iniciarCamara(v, (t) => mostrarConsulta(alumnoDeCodigo(t))).catch(() => {}); };
+  WD.act.bVentSalir = () => { detenerCamara(); clearTimeout(ventTimer); tab = 'cuentas'; document.body.classList.remove('proyector'); WD.refrescar(); };
+
   WD.act.bProyector = () => { tab = 'proyector'; document.body.classList.add('proyector'); WD.refrescar(); };
   WD.act.bSalirProyector = () => { tab = 'cuentas'; document.body.classList.remove('proyector'); WD.refrescar(); };
   WD.act.bServicioNuevo = () => { B().servicios.push({ id: WD.uid(), nombre: 'Nuevo servicio', desc: '', costo: 5, cat: 'servicio', interes: 5, auto: false }); WD.save(); WD.refrescar(); };
@@ -244,7 +317,10 @@
     titulo: 'Banco Estala',
     render() {
       abrirCuentas(); const b = B(); const als = WD.alumnosActivos();
-      if (tab === 'proyector' && !document.body.classList.contains('proyector')) tab = 'cuentas';
+      if ((tab === 'proyector' || tab === 'ventanilla') && !document.body.classList.contains('proyector')) { tab = 'cuentas'; detenerCamara(); }
+      if (tab === 'ventanilla') return `<div class="row"><h1 style="flex:1">${esc(b.ajustes.nombre)} · Consulta tu saldo</h1><button class="btn" data-act="bVentCam">Cambiar cámara</button><button class="btn" data-act="bVentSalir">Salir</button></div>
+          <div class="b-vent"><div class="card stack"><video class="b-video" id="vt-v"></video><p class="small muted" id="vt-msg" style="margin:0">Pon tu tarjeta frente a la cámara, con el código bien visible.</p></div>
+          <div class="card stack"><div id="vt-res" style="flex:1">${ESPERA}</div><button class="btn" data-act="bVentListo" style="justify-self:start;align-self:start">Siguiente alumno</button></div></div>`;
       if (tab === 'proyector') {
         const orden = als.slice().sort((x, y) => cta(y.id).saldo - cta(x.id).saldo);
         return `<div class="row"><h1 style="flex:1">${esc(b.ajustes.nombre)} · Saldos</h1><button class="btn" data-act="bSalirProyector">Salir del proyector</button></div>
@@ -265,7 +341,7 @@
           ${pend.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Alumno</th><th>Recibo</th><th>Vence</th><th class="r">Total</th><th></th></tr></thead><tbody>${pend.map((r) => { const a = WD.state.alumnos.find((x) => x.id === r.al); const rc = recargo(r); return `<tr><td>${esc(a ? WD.nombreLista(a) : '')}</td><td>${esc(r.nombre)}</td><td class="small ${rc ? '' : 'muted'}" style="${rc ? 'color:var(--bad)' : ''}">${esc(WD.fechaLarga(r.vence.slice(0, 10)))}</td><td class="r">${din(r.monto + rc)}</td><td class="r"><button class="btn sm" data-act="bPagarRecibo" data-id="${r.id}">Pagar</button></td></tr>`; }).join('')}</tbody></table></div>` : '<p class="small muted">No hay recibos pendientes.</p>'}</div>`;
       } else if (tab === 'imprimir') cuerpo = `<div class="grid g2">
           <div class="card stack"><b>Billetes</b><p class="small muted" style="margin:0">8 por hoja, de ${esc(b.ajustes.nombre)}.</p><div class="row">${['20', '50', '100', '200'].map((d) => `<button class="btn sm" data-act="bBilletes" data-d="${d}">${d}</button>`).join('')}<button class="btn sm" data-act="bBilletes" data-d="mix">Combinados</button></div></div>
-          <div class="card stack"><b>Tarjetas de cuenta</b><p class="small muted" style="margin:0">Nombre, número de cuenta y puesto de cada alumno.</p><button class="btn sm" data-act="bTarjetas" style="justify-self:start">${WD.icon('imprimir')} Imprimir tarjetas</button></div>
+          <div class="card stack"><b>Tarjetas de cuenta</b><p class="small muted" style="margin:0">Nombre, número de cuenta, puesto y código QR. El alumno la muestra en «Consulta de saldo» para ver su cuenta.</p><button class="btn sm" data-act="bTarjetas" style="justify-self:start">${WD.icon('imprimir')} Imprimir tarjetas</button></div>
           <div class="card stack"><b>Contratos de apertura</b><p class="small muted" style="margin:0">Las reglas del banco con firmas del alumno, tutor y docente.</p><button class="btn sm" data-act="bContratos" style="justify-self:start">${WD.icon('imprimir')} Imprimir contratos</button></div>
           <div class="card stack"><b>Estados de cuenta</b><p class="small muted" style="margin:0">Una hoja por alumno con sus últimos movimientos.</p><button class="btn sm" data-act="bEstado" style="justify-self:start">${WD.icon('imprimir')} Imprimir todos</button></div></div>`;
       else cuerpo = `<div class="card grid g3">
@@ -275,11 +351,16 @@
           <label class="field"><span>Saldo al abrir cuenta</span><input class="in" type="number" min="0" data-bind="banco.ajustes.saldoInicial" value="${b.ajustes.saldoInicial}"></label>
           <label class="field"><span>Préstamo máximo</span><input class="in" type="number" min="1" data-bind="banco.ajustes.prestamoMax" value="${b.ajustes.prestamoMax}"></label></div>
           <div class="row"><span style="flex:1"></span><button class="btn ghost danger sm" data-act="bReiniciar">Reiniciar el banco</button></div>`;
-      return `<div class="row"><div style="flex:1;min-width:0"><h1>${esc(b.ajustes.nombre)}</h1><p class="muted">La economía de tu salón: sueldos por comisión, servicios, recibos, préstamos y billetes.</p></div><button class="btn" data-act="bProyector">Saldos en el proyector</button><button class="btn" data-act="bExcel">${WD.icon('descargar')} Excel</button></div>
+      return `<div class="row"><div style="flex:1;min-width:0"><h1>${esc(b.ajustes.nombre)}</h1><p class="muted">La economía de tu salón: sueldos por comisión, servicios, recibos, préstamos y billetes.</p></div><button class="btn" data-act="bEscanear">${WD.icon('camara')} Escanear tarjeta</button><button class="btn" data-act="bVentanilla">Consulta de saldo</button><button class="btn" data-act="bProyector">Saldos en el proyector</button><button class="btn" data-act="bExcel">${WD.icon('descargar')} Excel</button></div>
         <div class="grid g3"><div class="card"><div class="label">Dinero del grupo</div><div style="font-size:26px;font-weight:700">${din(total)}</div></div><div class="card"><div class="label">Deudas</div><div style="font-size:26px;font-weight:700;${deuda ? 'color:var(--bad)' : ''}">${din(deuda)}</div></div><div class="card"><div class="label">Esta semana</div><div class="small">${b.ultimoSueldo >= lunes() ? '✓ Sueldos pagados' : 'Sueldos pendientes'}<br>${b.ultimoCobro >= lunes() ? '✓ Cobro hecho' : 'Cobro pendiente'}</div></div></div>
         <div class="row"><button class="btn pri" data-act="bOperar">Abonar</button><button class="btn" data-act="bOperar" data-s="-">Cobrar</button><button class="btn" data-act="bTransferir">Transferir</button><button class="btn" data-act="bSueldos">Pagar sueldos</button><button class="btn" data-act="bCobro">Cobro semanal</button></div>
         <div class="tabs">${tabs.map(([t, n]) => `<button class="${tab === t ? 'on' : ''}" data-act="bTab" data-t="${t}">${n}</button>`).join('')}</div>
         ${cuerpo}`;
+    },
+    after(v) {
+      const vid = v.querySelector('#vt-v');
+      if (vid) iniciarCamara(vid, (t) => mostrarConsulta(alumnoDeCodigo(t))).catch((e) => { const m = v.querySelector('#vt-msg'); if (m) m.textContent = e.name === 'NotAllowedError' ? 'Da permiso de usar la cámara: toca Salir y vuelve a entrar, y acepta el permiso.' : e.message; });
+      else detenerCamara();
     },
   };
 })(window.WD);

@@ -6,6 +6,7 @@
 
   /* ---------- sonido ---------- */
   let actx = null;
+  WD.herrSonar = (v) => sonar(v);
   function sonar(veces = 3) {
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();

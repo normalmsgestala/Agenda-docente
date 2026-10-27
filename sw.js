@@ -1,7 +1,7 @@
 /* Web Docente · funciona sin internet: guarda la app en el dispositivo */
-const CACHE = 'web-docente-v19';
+const CACHE = 'web-docente-v20';
 const ARCHIVOS = ['./', 'index.html', 'app.css', 'config.js', 'icon.svg', 'manifest.webmanifest',
-  'js/util.js', 'js/data.js', 'js/mascots.js', 'js/ai.js', 'js/google.js', 'js/ui.js', 'js/v-inicio.js', 'js/v-grupo.js', 'js/v-wizard.js',
+  'js/lib/qrcode.js', 'js/lib/jsQR.js', 'js/util.js', 'js/data.js', 'js/mascots.js', 'js/ai.js', 'js/google.js', 'js/ui.js', 'js/v-inicio.js', 'js/v-grupo.js', 'js/v-wizard.js',
   'js/v-asistencia.js', 'js/v-evaluacion.js', 'js/plan-docx.js', 'js/v-plan.js', 'js/v-incidencias.js', 'js/cal-sep.js', 'js/v-calendario.js', 'js/v-juntas.js', 'js/v-herramientas.js', 'js/v-tombola.js', 'js/v-idai.js', 'js/v-banco.js', 'js/v-config.js', 'js/main.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARCHIVOS)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
