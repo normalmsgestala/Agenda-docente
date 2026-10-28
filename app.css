@@ -351,6 +351,20 @@ body.expo-on .pet { display: none; }
 .ex-bar { display: flex; align-items: center; gap: 10px; padding: 10px 18px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
 .ex-ed { width: min(760px, 100%); margin: 24px auto; max-height: calc(100vh - 48px); overflow-y: auto; }
 
+/* ---------- comisiones y cumpleaños ---------- */
+.k-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.k-c { font: inherit; color: var(--ink); cursor: pointer; display: grid; gap: 10px; align-content: start; text-align: left; }
+.k-c:hover { border-color: var(--line-2); }
+.k-m { display: flex; flex-wrap: wrap; gap: 6px; }
+.k-meses { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.k-meses .card { display: grid; gap: 6px; align-content: start; }
+.k-hoy { border-color: var(--accent); }
+.k-cu { font: inherit; font-size: 14px; background: none; border: 0; padding: 2px 0; color: var(--ink); cursor: pointer; text-align: left; }
+.k-cu:hover { color: var(--accent); } .k-cu b { display: inline-block; min-width: 22px; color: var(--accent); }
+.k-proy { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 14px 40px; }
+.k-proy div { display: grid; gap: 2px; font-size: clamp(20px, 2.2vw, 30px); } .k-proy b { color: var(--accent); }
+.cumple-m svg { width: clamp(140px, 18vw, 240px); height: auto; }
+
 /* ---------- impresión (formatos oficiales) ---------- */
 #print-area { display: none; }
 .doc { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11.5pt; line-height: 1.45; }

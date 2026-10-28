@@ -53,6 +53,7 @@
       diagnosticos: [],
       banco: null,
       control: null,
+      comisiones: null,
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
