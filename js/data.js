@@ -54,6 +54,7 @@
       banco: null,
       control: null,
       comisiones: null,
+      comunicados: [],
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };

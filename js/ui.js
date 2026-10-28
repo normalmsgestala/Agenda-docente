@@ -26,6 +26,7 @@
     recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
     qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
     documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
+    familias: 'M4 6h16v12H4zM4 7l8 6 8-6',
     comisiones: 'M4 21v-6h16v6M7 15v-3M12 15v-4M17 15v-3M7 12a2 2 0 1 0 0-.01M12 9V6M12 4.5a1 1 0 0 0 0 .01M17 12a2 2 0 1 0 0-.01',
     control: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M8 12l2 2 4-4M8 17h8',
     banco: 'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18',
@@ -55,9 +56,10 @@
     { id: 'banco', t: 'Banco Estala' },
     { id: 'control', t: 'Control administrativo' },
     { id: 'comisiones', t: 'Comisiones y cumpleaños' },
+    { id: 'familias', t: 'Comunicación con familias' },
   ];
   const NAV2 = [{ id: 'escuela', t: 'Escuela' }, { id: 'ajustes', t: 'Ajustes' }];
-  const PRONTO = ['Comunicación con familias'];
+  const PRONTO = [];
   WD.PRONTO = PRONTO;
 
   /* ---------- tema ---------- */
@@ -99,7 +101,7 @@
         <nav class="nav">${NAV.map((n) => `<a href="#${n.id}" class="${id === n.id ? 'on' : ''}">${WD.icon(n.id)}${n.t}</a>`).join('')}
           <div class="nav-sec">Configuración</div>
           ${NAV2.map((n) => `<a href="#${n.id}" class="${id === n.id ? 'on' : ''}">${WD.icon(n.id)}${n.t}</a>`).join('')}
-          <div class="nav-sec">Próximamente</div>
+          ${PRONTO.length ? '<div class="nav-sec">Próximamente</div>' : ''}
           ${PRONTO.map((t) => `<a href="#pronto" data-act="pronto" data-n="${esc(t)}">${WD.icon('pronto')}${t}</a>`).join('')}
         </nav>
         <div class="side-foot">
@@ -281,6 +283,7 @@
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
+    { k: 'familias padres tutores mensajes correo whatsapp avisos citatorio recordatorio comunicacion', t: 'Comunicación con familias', to: 'familias' },
     { k: 'comisiones cumpleanos cumpleaños jefe de grupo responsables rotar felicitar', t: 'Comisiones y cumpleaños', to: 'comisiones' },
     { k: 'control administrativo entregas mensuales direccion supervision visitas vo bo programa analitico udei', t: 'Control administrativo', to: 'control' },
     { k: 'banco estala dinero billetes sueldo cuentas prestamo servicios recibos economia', t: 'Banco Estala', to: 'banco' },

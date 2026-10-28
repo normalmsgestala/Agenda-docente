@@ -74,7 +74,7 @@
       <div class="grid">${COLS.slice(12).map(campo).join('')}</div>
       <p class="tiny muted">Los cambios se guardan solos.</p>
       <div class="sep"></div>
-      <div class="row"><button class="btn" data-act="reporteAlumno" data-id="${id}">${WD.icon('imprimir')} Reporte individual</button><button class="btn" data-act="nuevaEntrevista" data-al="${id}">${WD.icon('mas')} Entrevista con la familia</button><span style="flex:1"></span><button class="btn danger" data-act="bajaAlumno" data-id="${id}">Dar de baja</button></div>`,
+      <div class="row"><button class="btn" data-act="reporteAlumno" data-id="${id}">${WD.icon('imprimir')} Reporte individual</button><button class="btn" data-act="nuevaEntrevista" data-al="${id}">${WD.icon('mas')} Entrevista con la familia</button><button class="btn" data-act="famNuevo" data-p="libre" data-al="${id}">${WD.icon('correo')} Mensaje a la familia</button><span style="flex:1"></span><button class="btn danger" data-act="bajaAlumno" data-id="${id}">Dar de baja</button></div>`,
       null, nuevo ? 'Escribe sus datos; se guardan solos.' : `N° ${esc(a.num || '—')} · ${esc(WD.state.escuela.grado)} ${esc(WD.state.escuela.grupo)}`);
   };
   WD.act.verAlumno = (el) => { WD.petCerrar && WD.petCerrar(); WD.abrirFicha(el.dataset.id); };
