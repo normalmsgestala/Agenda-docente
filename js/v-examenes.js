@@ -298,11 +298,12 @@
     render() {
       const als = WD.alumnosActivos(); const e = abierto && ex(abierto);
       if (!e) {
-        const es = lista().slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+        const vt = WD.triVista(); const es = lista().filter((x) => !vt || (x.tipo === 'diagnostico' ? 1 : Number(x.tipo.slice(1))) === vt).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
         return `<div class="row"><div style="flex:1;min-width:0"><h1>Exámenes</h1><p class="muted">Imprime la hoja de respuestas, escanéala con la cámara y la calificación pasa sola a Evaluación › Examen.</p></div><button class="btn pri" data-act="exNuevo">${WD.icon('mas')} Nuevo examen</button></div>
+          ${WD.selectorTri()}
           ${es.length ? `<div class="stack">${es.map((x) => { const n = Object.keys(x.res).length; const prom = n && claveLista(x) ? Math.round(Object.values(x.res).reduce((t, r) => t + puntaje(x, r.resp), 0) / n * 10) / 10 : null;
             return `<button class="card row dg-ap" data-act="exAbrir" data-id="${x.id}"><span class="pill">${TIPOS[x.tipo]}</span><span style="flex:1;text-align:left"><b>${esc(x.nombre)}</b><span class="small muted"> · ${esc(WD.CAMPO_CORTO[x.campo] || x.campo)} · ${x.n} preguntas · ${esc(WD.fechaLarga(x.fecha))}</span></span>${claveLista(x) ? '' : '<span class="pill warn">Falta la clave</span>'}<span class="pill">${n} de ${als.length}</span>${prom !== null ? `<b>${prom}</b>` : ''}</button>`; }).join('')}</div>`
-            : '<div class="empty"><h3>Aún no hay exámenes</h3><p class="small">Crea uno: te pregunto cuántas preguntas tiene, llenas la clave, imprimes las hojas y las escaneas.</p></div>'}`;
+            : `<div class="empty"><h3>${lista().length ? 'No hay exámenes en este periodo' : 'Aún no hay exámenes'}</h3><p class="small">Crea uno: te pregunto cuántas preguntas tiene, llenas la clave, imprimes las hojas y las escaneas. El diagnóstico aparece en el Trimestre 1.</p></div>`}`;
       }
       const tabs = [['clave', `Clave (${e.clave.filter(Boolean).length}/${e.n})`], ['resultados', `Resultados (${Object.keys(e.res).length})`], ['analisis', 'Análisis']];
       let cuerpo;

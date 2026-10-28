@@ -54,10 +54,10 @@
           <div class="att-list grid g2" style="max-height:none">${WD.asistBotones(fecha)}</div></div>`;
       }
       if (tab === 'alumnos') {
-        const ini = WD.state.trimestres[0].inicio || '';
-        return head + `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th class="r">Días</th><th class="r">Asistió</th><th class="r">Faltas</th><th class="r">Retardos</th><th class="r">Justif.</th><th class="r">Salió antes</th><th class="r">% asistencia</th></tr></thead><tbody>
-          ${als.map((a) => { const c = WD.asistAlumno(a.id, ini); return `<tr><td class="r">${esc(a.num || '')}</td><td><button class="link" data-act="verAlumno" data-id="${a.id}">${esc(WD.nombreLista(a))}</button></td><td class="r">${c.dias}</td><td class="r">${c.A}</td><td class="r">${c.F}</td><td class="r">${c.R}</td><td class="r">${c.J}</td><td class="r">${c.S}</td><td class="r"><b>${c.porcentaje ?? '—'}${c.porcentaje !== null ? '%' : ''}</b></td></tr>`; }).join('')}
-          </tbody></table></div><p class="tiny muted">Porcentaje del ciclo: (asistió + retardo + salió antes) ÷ días registrados.</p>`;
+        const rg = WD.rangoVista();
+        return head + WD.selectorTri() + `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th class="r">Días</th><th class="r">Asistió</th><th class="r">Faltas</th><th class="r">Retardos</th><th class="r">Justif.</th><th class="r">Salió antes</th><th class="r">% asistencia</th></tr></thead><tbody>
+          ${als.map((a) => { const c = WD.asistAlumno(a.id, rg.desde, rg.hasta); return `<tr><td class="r">${esc(a.num || '')}</td><td><button class="link" data-act="verAlumno" data-id="${a.id}">${esc(WD.nombreLista(a))}</button></td><td class="r">${c.dias}</td><td class="r">${c.A}</td><td class="r">${c.F}</td><td class="r">${c.R}</td><td class="r">${c.J}</td><td class="r">${c.S}</td><td class="r"><b>${c.porcentaje ?? '—'}${c.porcentaje !== null ? '%' : ''}</b></td></tr>`; }).join('')}
+          </tbody></table></div><p class="tiny muted">Porcentaje ${rg.n ? `del trimestre ${rg.n}` : 'del ciclo'}: (asistió + retardo + salió antes) ÷ días registrados en ese periodo. Las fechas de cada trimestre se cambian en «Fechas».</p>`;
       }
       const r = WD.reporteMensual(...mes.split('-').map(Number)); const e = WD.state.escuela; const habiles = diasHabilesMes(mes).length;
       return head + `<div class="card"><div class="card-h"><label class="field" style="max-width:200px"><span>Mes</span><input class="in" type="month" id="as-mes" value="${mes}"></label><div class="grow"></div>

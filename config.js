@@ -8,4 +8,4 @@ window.WD.CONFIG = {
   googleClientId: '174034297930-f5lvb5g1d58d5e3fg6rup5bnkp1gp10i.apps.googleusercontent.com',
   googleApiKey: 'AIzaSyDUoYdOFOutUNkgoXGOSdvbxbEstdx1toI',
 };
-window.WD.VERSION = '31';
+window.WD.VERSION = '32';

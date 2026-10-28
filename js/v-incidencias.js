@@ -20,6 +20,7 @@
         <label class="field" style="grid-column:1/-1"><span>Alumno(a) involucrado</span><select class="in" data-bind="${p}.alumnoId"><option value="">Elige al alumno…</option>${als.map((a) => `<option value="${a.id}" ${a.id === inc.alumnoId ? 'selected' : ''}>${esc(WD.nombreLista(a))}</option>`).join('')}</select></label>
         <label class="field"><span>Fecha</span><input class="in" type="date" data-bind="${p}.fecha" value="${esc(inc.fecha)}"></label>
         <label class="field"><span>Hora</span><input class="in" type="time" data-bind="${p}.hora" value="${esc(inc.hora)}"></label>
+        <label class="field"><span>Trimestre</span><select class="in" data-bind="${p}.trimestre"><option value="">Según la fecha (${WD.trimestreDe(inc.fecha)})</option>${[1, 2, 3].map((n) => `<option value="${n}" ${String(inc.trimestre) === String(n) ? 'selected' : ''}>Trimestre ${n}</option>`).join('')}</select></label>
         <label class="field"><span>Gravedad</span><select class="in" data-bind="${p}.gravedad">${['leve', 'moderada', 'grave'].map((g) => `<option ${g === inc.gravedad ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
         <label class="field"><span>Estado</span><select class="in" data-bind="${p}.estado">${[['abierto', 'Abierto'], ['cerrado', 'Cerrado']].map(([v, n]) => `<option value="${v}" ${v === inc.estado ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       </div>
@@ -96,16 +97,22 @@
     }
   };
 
+  WD.triDeInc = (x) => Number(x.trimestre) || WD.trimestreDe(x.fecha);
+  WD.incReporteHTML = reporteHTML; WD.incActaHTML = actaHTML;
+  let vistaInc = 'lista';
+  WD.act.incVista = (el) => { vistaInc = el.dataset.v; WD.refrescar(); };
   WD.views.incidencias = {
     titulo: 'Incidencias',
     render() {
-      const lista = WD.state.incidencias.filter((x) => filtro === 'todas' || (filtro === 'abiertas' ? x.estado !== 'cerrado' : x.tipo === filtro)).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+      const vt = WD.triVista(); const lista = WD.state.incidencias.filter((x) => !vt || WD.triDeInc(x) === vt).filter((x) => filtro === 'todas' || (filtro === 'abiertas' ? x.estado !== 'cerrado' : x.tipo === filtro)).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
       return `<div class="row"><div style="flex:1;min-width:0"><h1>Incidencias</h1><p class="muted">Bitácora con folios. Escribe lo que pasó y la IA lo redacta en el formato oficial.</p></div>
         ${Object.entries(WD.TIPOS_INC).map(([k, t]) => `<button class="btn ${k === 'C' ? 'pri' : ''}" data-act="nuevaInc" data-tipo="${k}">${WD.icon('mas')} ${t.nombre}</button>`).join('')}</div>
-      <div class="tabs">${[['todas', 'Todas'], ['abiertas', 'Abiertas'], ['C', 'Conducta'], ['A', 'Accidentes'], ['B', 'Violencia']].map(([f, n]) => `<button class="${filtro === f ? 'on' : ''}" data-act="incFiltro" data-f="${f}">${n}</button>`).join('')}</div>
+      ${WD.selectorTri()}
+      <div class="row"><div class="tabs">${[['lista', 'Bitácora'], ['alumnos', 'Archivo por alumno']].map(([v, n]) => `<button class="${vistaInc === v ? 'on' : ''}" data-act="incVista" data-v="${v}">${n}</button>`).join('')}</div><span style="flex:1"></span><button class="btn sm" data-act="paqueteTri">${WD.icon('descargar')} Paquete ${vt ? `del trimestre ${vt}` : 'del ciclo'}</button></div>
+      ${vistaInc === 'alumnos' ? WD.archivoIncHTML(vt) : `<div class="tabs">${[['todas', 'Todas'], ['abiertas', 'Abiertas'], ['C', 'Conducta'], ['A', 'Accidentes'], ['B', 'Violencia']].map(([f, n]) => `<button class="${filtro === f ? 'on' : ''}" data-act="incFiltro" data-f="${f}">${n}</button>`).join('')}</div>
       ${lista.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Alumno</th><th>Tipo</th><th>Gravedad</th><th>Estado</th><th>Tutor</th></tr></thead><tbody>
         ${lista.map((x) => { const a = WD.alumno(x.alumnoId); return `<tr><td><button class="link num" data-act="verInc" data-id="${x.id}">${esc(x.folio)}</button></td><td class="num">${esc(x.fecha)} ${esc(x.hora)}</td><td>${a ? esc(WD.nombreLista(a)) : '<span class="faint">—</span>'}</td><td>${WD.TIPOS_INC[x.tipo].nombre}</td><td><span class="pill ${x.gravedad === 'grave' ? 'bad' : x.gravedad === 'moderada' ? 'warn' : ''}">${esc(x.gravedad)}</span></td><td><span class="pill ${x.estado === 'cerrado' ? 'ok' : 'acc'}">${x.estado === 'cerrado' ? 'Cerrado' : 'Abierto'}</span></td><td>${x.enviado ? '<span class="pill ok">Enviado</span>' : ''}</td></tr>`; }).join('')}
-      </tbody></table></div>` : `<div class="empty"><h3>Sin reportes${filtro !== 'todas' ? ' en este filtro' : ''}</h3><p class="small">Cuando pase algo, toca el tipo de reporte arriba. El folio, la fecha y los datos de la escuela se llenan solos.</p></div>`}`;
+      </tbody></table></div>` : `<div class="empty"><h3>Sin reportes${filtro !== 'todas' ? ' en este filtro' : ''}</h3><p class="small">Cuando pase algo, toca el tipo de reporte arriba. El folio, la fecha y los datos de la escuela se llenan solos.</p></div>`}`}`;
     },
   };
 })(window.WD);

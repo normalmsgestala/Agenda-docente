@@ -95,7 +95,7 @@
   /* ---------- exportar e imprimir ---------- */
   WD.excelEvaluacionAsistencia = async (n) => {
     const T = n || tri || WD.trimestreDe(WD.iso(new Date())); const als = WD.alumnosActivos();
-    const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, T), as: WD.asistAlumno(a.id) }));
+    const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, T), as: WD.asistTri(a.id, T) }));
     const proms = filas.map((f) => f.r.promedio ?? -1); const lugar = (p) => p < 0 ? '' : 1 + proms.filter((x) => x > p).length;
     const hojas = [{ name: 'Calificación', widths: [6, 32, 11, 11, 11, 11, 10, 11, 8, 8, 11], rows: [['N° lista', 'Nombre', 'Lenguajes', 'Saberes', 'Ética', 'Humano', 'Promedio', 'Porcentaje', 'Lugar', 'Faltas', 'Semáforo'],
       ...filas.map(({ a, r, as }) => [Number(a.num) || '', WD.nombreLista(a), ...WD.CAMPOS.map((c) => r.porCampo[c].nota ?? ''), r.promedio ?? '', r.promedio !== null ? r.promedio * 10 : '', lugar(r.promedio ?? -1), as.F, WD.semaforo(r.promedio)])] }];
@@ -111,14 +111,14 @@
   };
   WD.act.excelEval = async () => { const b = await WD.excelEvaluacionAsistencia(tri); WD.download(b, `Evaluacion_T${tri}_${(WD.state.escuela.grado || '').replace(/\W/g, '')}${WD.state.escuela.grupo || ''}.xlsx`); };
   WD.act.imprimirGrupo = () => {
-    const als = WD.alumnosActivos(); const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, tri), as: WD.asistAlumno(a.id) }));
+    const als = WD.alumnosActivos(); const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, tri), as: WD.asistTri(a.id, tri) }));
     const e = WD.state.escuela;
     WD.vistaDocumento('Reporte general del grupo', `${WD.membrete()}<h2>REPORTE DE EVALUACIÓN · TRIMESTRE ${tri}</h2><p style="font-size:10pt;margin-bottom:10px">Grado y grupo: <b>${esc(e.grado)} ${esc(e.grupo)}</b> · Docente: <b>${esc(WD.state.docente.nombre)}</b></p>
       <table><thead><tr><th>N°</th><th>Alumno</th><th>Lenguajes</th><th>Saberes</th><th>Ética</th><th>Humano</th><th>Promedio</th><th>% asist.</th></tr></thead><tbody>${filas.map(({ a, r, as }) => `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td>${WD.CAMPOS.map((c) => `<td>${r.porCampo[c].nota ?? '—'}</td>`).join('')}<td><b>${r.promedio ?? '—'}</b></td><td>${as.porcentaje ?? '—'}</td></tr>`).join('')}</tbody></table>
       <div class="firmas" style="grid-template-columns:1fr 1fr"><div>${esc(WD.state.docente.nombre)}<br>Docente</div><div>${esc(e.director || '')}<br>Dirección</div></div>${WD.piePagina()}`);
   };
   WD.reporteIndividualHTML = (id, T) => {
-    const a = WD.alumno(id); const r = WD.resumenAlumno(id, T); const as = WD.asistAlumno(id); const e = WD.state.escuela;
+    const a = WD.alumno(id); const r = WD.resumenAlumno(id, T); const as = WD.asistTri(id, T); const e = WD.state.escuela;
     const acts = WD.state.actividades.filter((x) => x.trimestre === T).sort((x, y) => (x.fecha || '').localeCompare(y.fecha || ''));
     return `${WD.membrete()}<h2>REPORTE INDIVIDUAL DE EVALUACIÓN · TRIMESTRE ${T}</h2>
       <div class="box"><b>Alumno(a):</b> ${esc(WD.nombreCompleto(a))} &nbsp; · &nbsp; <b>Grado y grupo:</b> ${esc(e.grado)} ${esc(e.grupo)} &nbsp; · &nbsp; <b>N° de lista:</b> ${esc(a.num || '')}</div>
@@ -169,7 +169,7 @@
           <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fecha</th><th>Actividad</th><th>Campo</th><th>Rubro</th><th class="r">Nota</th></tr></thead><tbody>${WD.state.actividades.filter((x) => x.trimestre === tri).sort((x, y) => (y.fecha || '').localeCompare(x.fecha || '')).map((x) => { const v = WD.califActividad(x, a.id); return `<tr><td class="num">${esc(x.fecha || '')}</td><td><button class="link" data-act="verActividad" data-id="${x.id}">${esc(x.nombre || 'Sin nombre')}</button></td><td>${WD.CAMPO_CORTO[x.campo]}</td><td>${WD.RUBROS.find((q) => q.id === x.rubro).nombre}</td><td class="r nota">${v === null ? '—' : WD.round1(v)}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Sin actividades.</td></tr>'}</tbody></table></div>`;
       }
       // grupo
-      const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, tri), as: WD.asistAlumno(a.id) }));
+      const filas = als.map((a) => ({ a, r: WD.resumenAlumno(a.id, tri), as: WD.asistTri(a.id, tri) }));
       const proms = filas.map((f) => f.r.promedio).filter((x) => x !== null);
       const sem = { verde: 0, amarillo: 0, rojo: 0 }; filas.forEach((f) => { const s = WD.semaforo(f.r.promedio); if (s) sem[s]++; });
       const lugar = (p) => p === null ? '' : 1 + proms.filter((x) => x > p).length;
