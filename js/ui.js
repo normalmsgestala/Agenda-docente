@@ -26,6 +26,7 @@
     recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
     qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
     documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
+    examenes: 'M7 3h10v18H7zM10 7h4M9.5 11a1 1 0 1 0 0 .01M9.5 15a1 1 0 1 0 0 .01M12 11h3M12 15h3',
     familias: 'M4 6h16v12H4zM4 7l8 6 8-6',
     comisiones: 'M4 21v-6h16v6M7 15v-3M12 15v-4M17 15v-3M7 12a2 2 0 1 0 0-.01M12 9V6M12 4.5a1 1 0 0 0 0 .01M17 12a2 2 0 1 0 0-.01',
     control: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M8 12l2 2 4-4M8 17h8',
@@ -47,7 +48,7 @@
 
   const NAV = [
     { id: 'inicio', t: 'Inicio' }, { id: 'grupo', t: 'Mi grupo' }, { id: 'asistencia', t: 'Asistencia' },
-    { id: 'evaluacion', t: 'Evaluación' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
+    { id: 'evaluacion', t: 'Evaluación' }, { id: 'examenes', t: 'Exámenes' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
     { id: 'incidencias', t: 'Incidencias' }, { id: 'calendario', t: 'Calendario y CTE' },
     { id: 'juntas', t: 'Juntas con padres' },
     { id: 'herramientas', t: 'Herramientas de aula' },
@@ -283,6 +284,7 @@
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
+    { k: 'examenes examen hoja de respuestas escanear calificar zipgrade clave diagnostico', t: 'Exámenes', to: 'examenes' },
     { k: 'familias padres tutores mensajes correo whatsapp avisos citatorio recordatorio comunicacion', t: 'Comunicación con familias', to: 'familias' },
     { k: 'comisiones cumpleanos cumpleaños jefe de grupo responsables rotar felicitar', t: 'Comisiones y cumpleaños', to: 'comisiones' },
     { k: 'control administrativo entregas mensuales direccion supervision visitas vo bo programa analitico udei', t: 'Control administrativo', to: 'control' },

@@ -365,6 +365,25 @@ body.expo-on .pet { display: none; }
 .k-proy div { display: grid; gap: 2px; font-size: clamp(20px, 2.2vw, 30px); } .k-proy b { color: var(--accent); }
 .cumple-m svg { width: clamp(140px, 18vw, 240px); height: auto; }
 
+/* ---------- exámenes ---------- */
+.exk { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 4px 24px; }
+.exk-f { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.exk-f > b { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.exb { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink); font: 600 14px inherit; font-family: inherit; cursor: pointer; }
+.exb.on, .exb.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.exb.mal { background: var(--bad); border-color: var(--bad); color: #fff; }
+.exb.clave { border-color: var(--ok); color: var(--ok); border-width: 2.5px; }
+#expo.exs { background: #000; color: #fff; }
+.exs-v { position: relative; overflow: hidden; display: grid; place-items: center; }
+.exs-v video, .exs-v canvas { width: 100%; height: 100%; object-fit: contain; position: absolute; inset: 0; }
+.exs-v canvas { opacity: 0; transition: opacity .2s; } .exs-v canvas.on { opacity: 1; }
+.exs-guia { position: absolute; inset: 6% 18%; pointer-events: none; }
+.exs-guia i { position: absolute; width: 34px; height: 34px; border: 4px solid rgba(255,255,255,.75); }
+.exs-guia i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; } .exs-guia i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.exs-guia i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; } .exs-guia i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+#expo.exs .ex-bar { background: #111; border-color: #222; color: #fff; }
+#exs-msg.bien { color: #7ee2a0; } #exs-msg.mal { color: #ff8a8a; }
+
 /* ---------- impresión (formatos oficiales) ---------- */
 #print-area { display: none; }
 .doc { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11.5pt; line-height: 1.45; }

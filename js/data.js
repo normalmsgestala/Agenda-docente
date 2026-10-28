@@ -55,6 +55,7 @@
       control: null,
       comisiones: null,
       comunicados: [],
+      examenes: [],
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
