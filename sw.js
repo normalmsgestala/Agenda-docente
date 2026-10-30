@@ -1,5 +1,5 @@
 /* Web Docente · funciona sin internet: guarda la app en el dispositivo */
-const CACHE = 'web-docente-v32';
+const CACHE = 'web-docente-v33';
 const ARCHIVOS = ['./', 'index.html', 'app.css', 'config.js', 'icon.svg', 'manifest.webmanifest',
   'js/lib/qrcode.js', 'js/lib/jsQR.js', 'js/util.js', 'js/data.js', 'js/mascots.js', 'js/ai.js', 'js/google.js', 'js/ui.js', 'js/v-inicio.js', 'js/v-grupo.js', 'js/v-wizard.js',
   'js/v-asistencia.js', 'js/v-evaluacion.js', 'js/plan-docx.js', 'js/v-plan.js', 'js/v-incidencias.js', 'js/cal-sep.js', 'js/periodos.js', 'js/v-calendario.js', 'js/v-juntas.js', 'js/v-herramientas.js', 'js/v-tombola.js', 'js/v-idai.js', 'js/v-banco.js', 'js/v-banco-alumno.js', 'js/v-control.js', 'js/exposicion.js', 'js/v-comisiones.js', 'js/v-familias.js', 'js/v-examenes.js', 'js/expedientes.js', 'js/v-config.js', 'js/main.js'];

@@ -94,6 +94,47 @@
       <div class="firmas" style="grid-template-columns:1fr 1fr"><div>${esc(WD.state.docente.nombre)}<br>Docente</div><div>${esc(es.director || '')}<br>Dirección</div></div>${WD.piePagina()}`);
   };
 
+  /* ---------- foto del calendario del mes (lo lee la IA) ---------- */
+  WD.act.calFoto = () => { if (!WD.requiereIA()) return; const inp = document.getElementById('cal-foto'); inp.value = ''; inp.click(); };
+  async function leerFotoCal(files) {
+    if (!files.length) return;
+    const ym = mesVista || iso(new Date()).slice(0, 7);
+    WD.abrirDrawer('Calendario de la foto', '<div class="row"><span class="spinner"></span><span class="small muted">Leyendo el calendario con tu Gemini…</span></div>');
+    try {
+      const partes = [];
+      for (const f of files) { const url = await WD.shrinkImage(f, 2000, 0.88); const [meta, data] = url.split(','); partes.push({ inline_data: { mime_type: (meta.match(/data:(.*?);/) || [])[1] || 'image/jpeg', data } }); }
+      const tipos = Object.entries(WD.TIPOS_EVENTO).map(([k, t]) => `${k} = ${t.nombre}`).join('; ');
+      partes.push({ text: `Eres asistente de un maestro de primaria en Nuevo León, México. Las imágenes son un calendario mensual de actividades que le dio su escuela (puede ser foto de una hoja impresa o captura).
+Extrae TODAS las actividades escritas en cada día. El mes que el maestro está viendo es ${ym}; si la imagen indica otro mes o año, usa el de la imagen. Ciclo escolar ${WD.state.escuela.ciclo || ''}.
+Para cada actividad: fecha (AAAA-MM-DD; si abarca varios días usa inicio y fin), titulo corto y claro, hora si aparece (HH:MM, 24 h), notas (responsable, lugar, materiales u otros detalles escritos) y tipo, uno de: ${tipos}. Usa "sin_clases" solo si dice suspensión o sin clases; "cte" para Consejo Técnico; "efemeride" para días conmemorativos u honores; "personal" para todo lo demás (juntas, entregas, eventos, actividades).
+No inventes: si algo no se lee, omítelo. Devuelve JSON {"mes":"AAAA-MM","eventos":[{"inicio":"AAAA-MM-DD","fin":"AAAA-MM-DD","titulo":"","hora":"","tipo":"personal","notas":""}]}` });
+      const out = await WD.ai.generar(partes, { json: true, temperatura: 0.1, maxTokens: 8192 });
+      const evs = (out.eventos || []).filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e.inicio || '') && (e.titulo || '').trim()).map((e) => ({ inicio: e.inicio, fin: /^\d{4}-\d{2}-\d{2}$/.test(e.fin || '') && e.fin >= e.inicio ? e.fin : e.inicio, titulo: e.titulo.trim(), hora: /^\d{1,2}:\d{2}$/.test(e.hora || '') ? e.hora : '', tipo: WD.TIPOS_EVENTO[e.tipo] ? e.tipo : 'personal', notas: (e.notas || '').trim() }));
+      if (!evs.length) { WD.abrirDrawer('Calendario de la foto', '<p class="small">No encontré actividades en la foto. Intenta con una foto más cercana, de frente y con buena luz.</p>'); return; }
+      revisarFotoCal(evs, out.mes);
+    } catch (e) { WD.abrirDrawer('Calendario de la foto', `<p class="small" style="color:var(--bad)">${esc(e.message)}</p>`); }
+  }
+  document.addEventListener('change', (e) => { if (e.target && e.target.id === 'cal-foto') leerFotoCal([...e.target.files]); });
+  function revisarFotoCal(evs, mes) {
+    const ya = (e) => cal().eventos.some((x) => x.inicio === e.inicio && (WD.norm(x.titulo) === WD.norm(e.titulo) || (x.tipo === e.tipo && ['cte', 'cte_intensiva', 'sin_clases', 'vacaciones', 'registro', 'comunicacion'].includes(e.tipo))));
+    WD.abrirDrawer('Calendario de la foto', `<p class="small muted" style="margin:0">Encontré ${evs.length} actividad${evs.length === 1 ? '' : 'es'}. Revisa, corrige lo que haga falta y quita la palomita a lo que no quieras agregar.</p>
+      <div class="stack" id="cf-l" style="gap:8px">${evs.map((e, i) => `<div class="card stack" style="gap:6px;padding:12px" data-i="${i}"><div class="row" style="gap:8px"><input type="checkbox" class="cf-ok" ${ya(e) ? '' : 'checked'} aria-label="Agregar"><input class="in cf-t" value="${esc(e.titulo)}" style="flex:1"></div>
+        <div class="grid g3" style="gap:6px"><input class="in cf-i" type="date" value="${e.inicio}" aria-label="Fecha"><input class="in cf-h" type="time" value="${e.hora}" aria-label="Hora"><select class="in cf-y" aria-label="Tipo">${Object.entries(WD.TIPOS_EVENTO).map(([k, t]) => `<option value="${k}" ${k === e.tipo ? 'selected' : ''}>${t.nombre}</option>`).join('')}</select></div>
+        ${e.notas ? `<input class="in cf-n" value="${esc(e.notas)}" aria-label="Notas">` : '<input class="cf-n" type="hidden" value="">'}${e.fin !== e.inicio ? `<span class="tiny muted">Hasta el ${esc(WD.fechaLarga(e.fin))}</span>` : ''}${ya(e) ? '<span class="tiny muted">Ya estaba en tu calendario</span>' : ''}</div>`).join('')}</div>
+      <div class="row"><span style="flex:1"></span><button class="btn pri" id="cf-add">Agregar al calendario</button></div>`, (box) => {
+      box.querySelector('#cf-add').onclick = () => {
+        let n = 0;
+        box.querySelectorAll('#cf-l [data-i]').forEach((d) => {
+          if (!d.querySelector('.cf-ok').checked) return; const e = evs[Number(d.dataset.i)];
+          const inicio = d.querySelector('.cf-i').value || e.inicio; const dur = (WD.parseISO(e.fin) - WD.parseISO(e.inicio)) / 864e5; const fin = dur > 0 ? iso(WD.addDays(WD.parseISO(inicio), dur)) : inicio;
+          const hora = d.querySelector('.cf-h').value; const notas = d.querySelector('.cf-n').value;
+          cal().eventos.push({ id: WD.uid(), tipo: d.querySelector('.cf-y').value, inicio, fin, titulo: d.querySelector('.cf-t').value.trim() || e.titulo, hora, notas: [hora ? `Hora: ${hora}` : '', notas].filter(Boolean).join(' · '), deFoto: true }); n++;
+        });
+        WD.save(); WD.cerrarDrawer(); if (mes && /^\d{4}-\d{2}$/.test(mes)) mesVista = mes; WD.refrescar(); WD.toast(`${n} actividad${n === 1 ? '' : 'es'} agregada${n === 1 ? '' : 's'} al calendario`, 3000);
+      };
+    }, 'Puedes tomar varias fotos si el calendario no cabe en una');
+  }
+
   /* ---------- vista ---------- */
   WD.views.calendario = {
     titulo: 'Calendario y CTE',
@@ -101,7 +142,7 @@
       const c = cal(); const hoy = iso(new Date());
       if (!c.eventos.length) return `<div><h1>Calendario y CTE</h1><p class="muted">Fechas del ciclo escolar, días sin clases y tus sesiones de Consejo Técnico.</p></div>
         <div class="empty"><h3>Carga el calendario de tu ciclo</h3><p class="small">Trae inicio y fin de clases, las 8 sesiones de CTE, días sin clases, vacaciones, registro de calificaciones, el valor de cada mes y los días conmemorativos. Después puedes cambiar lo que quieras.</p>
-          <div class="row">${Object.entries(WD.CAL_PRESETS).map(([k, p]) => `<button class="btn pri" data-act="cargarCalendario" data-p="${k}">${esc(p.nombre)}</button>`).join('')}<button class="btn" data-act="nuevoEvento">Empezar sin calendario</button></div></div>`;
+          <div class="row">${Object.entries(WD.CAL_PRESETS).map(([k, p]) => `<button class="btn pri" data-act="cargarCalendario" data-p="${k}">${esc(p.nombre)}</button>`).join('')}<button class="btn" data-act="nuevoEvento">Empezar sin calendario</button><button class="btn" data-act="calFoto">${WD.icon('camara')} Foto del calendario del mes</button><input type="file" id="cal-foto" accept="image/*" multiple hidden></div></div>`;
       const ym = mesVista || hoy.slice(0, 7); const [y, m] = ym.split('-').map(Number);
       const primero = new Date(y, m - 1, 1); const dias = new Date(y, m, 0).getDate(); const vacios = primero.getDay();
       const celdas = [];
@@ -114,7 +155,7 @@
       const prox = c.eventos.filter((e) => e.tipo !== 'efemeride' && (e.fin || e.inicio) >= hoy).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(0, 6);
       const ctes = c.eventos.filter((e) => e.tipo === 'cte' || e.tipo === 'cte_intensiva').sort((a, b) => a.inicio.localeCompare(b.inicio));
       return `<div class="row"><div style="flex:1;min-width:0"><h1>Calendario y CTE</h1><p class="muted">${esc((WD.CAL_PRESETS[c.preset] || {}).nombre || 'Mi calendario')}</p></div>
-          <button class="btn" data-act="nuevoEvento">${WD.icon('mas')} Agregar fecha</button></div>
+          <button class="btn" data-act="calFoto">${WD.icon('camara')} Foto del calendario del mes</button><button class="btn" data-act="nuevoEvento">${WD.icon('mas')} Agregar fecha</button><input type="file" id="cal-foto" accept="image/*" multiple hidden></div>
         <div class="grid g-cal">
           <div class="card"><div class="card-h"><div class="grow"><h2 style="text-transform:capitalize">${MESES[m - 1]} ${y}</h2>${WD.valorDelMes(ym + '-01') ? `<div class="small muted">Valor del mes: <b>${esc(WD.valorDelMes(ym + '-01'))}</b></div>` : ''}</div>
               <button class="btn sm ghost" data-act="calMes" data-d="-1" aria-label="Mes anterior">${WD.icon('izq')}</button><button class="btn sm" data-act="calMes" data-d="0">Hoy</button><button class="btn sm ghost" data-act="calMes" data-d="1" aria-label="Mes siguiente">${WD.icon('der')}</button></div>
