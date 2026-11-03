@@ -26,6 +26,8 @@
     recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
     qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
     documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
+    atencion: 'M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z',
+    agenda: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6',
     listas: 'M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2',
     examenes: 'M7 3h10v18H7zM10 7h4M9.5 11a1 1 0 1 0 0 .01M9.5 15a1 1 0 1 0 0 .01M12 11h3M12 15h3',
     familias: 'M4 6h16v12H4zM4 7l8 6 8-6',
@@ -48,8 +50,8 @@
   WD.icon = (n, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n] || P.pronto}"/></svg>`;
 
   const NAV = [
-    { id: 'inicio', t: 'Inicio' }, { id: 'grupo', t: 'Mi grupo' }, { id: 'asistencia', t: 'Asistencia' },
-    { id: 'evaluacion', t: 'Evaluación' }, { id: 'examenes', t: 'Exámenes' }, { id: 'listas', t: 'Listas y notas' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
+    { id: 'inicio', t: 'Inicio' }, { id: 'grupo', t: 'Mi grupo' }, { id: 'atencion', t: 'Atención diferenciada' }, { id: 'asistencia', t: 'Asistencia' },
+    { id: 'evaluacion', t: 'Evaluación' }, { id: 'examenes', t: 'Exámenes' }, { id: 'listas', t: 'Listas y notas' }, { id: 'agenda', t: 'Para la agenda' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
     { id: 'incidencias', t: 'Incidencias' }, { id: 'calendario', t: 'Calendario y CTE' },
     { id: 'juntas', t: 'Juntas con padres' },
     { id: 'herramientas', t: 'Herramientas de aula' },
@@ -70,7 +72,7 @@
   /* ---------- ruta ---------- */
   WD.ruta = () => { const h = (location.hash || '').replace('#', ''); return WD.views[h] ? h : 'inicio'; };
   WD.ir = (id) => { if (location.hash !== '#' + id) location.hash = id; else WD.render(); window.scrollTo(0, 0); };
-  window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { document.body.classList.remove('proyector'); WD.cerrarDrawer && WD.cerrarDrawer(); WD.cerrarMenu(); WD.render(); window.scrollTo(0, 0); });
 
   WD.act.qrMaestro = () => { WD.vistaQR = true; WD.render(); };
   /* ---------- render principal ---------- */
@@ -226,9 +228,10 @@
     const m = WD.modal(`<div class="row"><h2 class="grow" style="flex:1">${esc(titulo)}</h2><button class="x" data-act="cerrarModal" aria-label="Cerrar">×</button></div>
       <div class="preview-doc"><div class="doc">${html}</div></div>
       <p class="tiny muted">En “Imprimir” elige “Guardar como PDF” para obtener el archivo.</p>
-      <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cerrarModal">Cerrar</button><button class="btn pri" id="doc-print">${WD.icon('imprimir')} Imprimir o guardar PDF</button></div>`);
+      <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cerrarModal">Cerrar</button><button class="btn" id="doc-agenda">Tamaño agenda</button><button class="btn pri" id="doc-print">${WD.icon('imprimir')} Imprimir o guardar PDF</button></div>`);
     m.querySelector('.card').style.width = 'min(860px, 100%)';
     m.querySelector('#doc-print').onclick = () => WD.imprimir(html);
+    m.querySelector('#doc-agenda').onclick = () => { const partes = html.split(/<div style="[^"]*page-break-before:always[^"]*">/); WD.vistaAgenda(partes.map((p) => WD.hojaAgenda.documento(p)), `${titulo} · tamaño agenda`); };
   };
   WD.imprimir = (html) => {
     let pa = document.getElementById('print-area'); if (!pa) { pa = document.createElement('div'); pa.id = 'print-area'; document.body.appendChild(pa); }
@@ -285,6 +288,8 @@
     { k: 'horas horario recreo turno', t: 'Horario', to: 'horario' },
     { k: 'junta padres tutores acta reunion entrevista familia firmas', t: 'Juntas con padres', to: 'juntas' },
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
+    { k: 'agenda imprimir pegar recortar media carta asistencia mensual registro evaluacion directorio calendario indice', t: 'Para la agenda', to: 'agenda' },
+    { k: 'atencion diferenciada perfil del grupo rezago nee socioemocional estrategias evidencias estilos de aprendizaje', t: 'Atención diferenciada', to: 'atencion' },
     { k: 'listas notas checklist cotejo trajo trabajo tarea material quien falta', t: 'Listas y notas', to: 'listas' },
     { k: 'examenes examen hoja de respuestas escanear calificar zipgrade clave diagnostico', t: 'Exámenes', to: 'examenes' },
     { k: 'familias padres tutores mensajes correo whatsapp avisos citatorio recordatorio comunicacion', t: 'Comunicación con familias', to: 'familias' },

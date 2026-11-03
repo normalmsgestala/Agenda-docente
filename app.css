@@ -391,6 +391,37 @@ body.expo-on .pet { display: none; }
 #expo.exs .ex-bar { background: #111; border-color: #222; color: #fff; }
 #exs-msg.bien { color: #7ee2a0; } #exs-msg.mal { color: #ff8a8a; }
 
+/* ---------- para la agenda (recuadro de 119 × 176 mm) ---------- */
+.agt { width: 119mm; height: 176mm; box-sizing: border-box; padding: 4mm 4.5mm; border: 0.3mm dashed #888; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; line-height: 1.25; overflow: hidden; display: flex; flex-direction: column; gap: 2.2mm; flex: none; }
+.agt-h { display: flex; align-items: baseline; gap: 3mm; border-bottom: 0.4mm solid #222; padding-bottom: 1.2mm; }
+.agt-h b { font-size: 10.5pt; flex: 1; } .agt-h span { font-size: 7pt; color: #444; }
+.agt-p { margin-top: auto; font-size: 6pt; color: #777; text-align: center; }
+.agt-t { width: 100%; border-collapse: collapse; table-layout: auto; font-size: 6.4pt; }
+.agt-t th, .agt-t td { border: 0.2mm solid #999; padding: 0.35mm 0.5mm; text-align: center; white-space: nowrap; }
+.agt-t th { background: #e9e9e6; font-weight: 700; }
+.agt-t .l { text-align: left; overflow: hidden; text-overflow: ellipsis; max-width: 30mm; }
+.agt-t td b.f { color: #b00; }
+.agt-g { font-size: 7.4pt; } .agt-g th, .agt-g td { padding: 0.7mm 1mm; } .agt-g .l { max-width: 52mm; white-space: normal; }
+.agt-r { font-size: 6.4pt; }
+.agt-d { font-weight: 400; font-size: 5.6pt; color: #555; }
+.agt-n { font-size: 6pt; color: #555; margin: 0; }
+.agt-cal { width: 100%; border-collapse: collapse; table-layout: fixed; flex: 1; }
+.agt-cal th { font-size: 6.5pt; background: #e9e9e6; border: 0.2mm solid #999; padding: 0.6mm; }
+.agt-cal td { border: 0.2mm solid #999; vertical-align: top; padding: 0.6mm; height: 24mm; font-size: 5.6pt; overflow: hidden; }
+.agt-cal td b { display: block; font-size: 7.5pt; } .agt-cal td i { display: block; font-style: normal; line-height: 1.15; margin-top: 0.5mm; } .agt-cal td.sc { background: #eee; }
+.agt-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; }
+.agt-c { border: 0.3mm solid #333; border-radius: 2mm; padding: 1.6mm 2mm; } .agt-c > b { display: block; font-size: 8pt; margin-bottom: 0.8mm; } .agt-c p { margin: 0.4mm 0; } .agt-c ul { margin: 0; padding-left: 4mm; }
+.agt-b { width: 100%; border-collapse: collapse; } .agt-b td { padding: 0.3mm 0; font-size: 7pt; }
+.agt-doc { padding: 3mm; } .agt-z { width: 186mm; transform: scale(0.6); transform-origin: 0 0; }
+.ag-hoja { width: 186mm; height: 246mm; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; page-break-after: always; break-after: page; overflow: hidden; }
+.ag-rot { width: 176mm; height: 119mm; position: relative; flex: none; }
+.ag-rot .agt { position: absolute; left: 0; top: 0; transform: translateY(119mm) rotate(-90deg); transform-origin: 0 0; }
+.agt-fx { table-layout: fixed; } .agt-fx th, .agt-fx td { overflow: hidden; padding-left: 0.2mm; padding-right: 0.2mm; } .agt-fx .l { max-width: none; text-overflow: ellipsis; }
+.agt-vacia { border-color: transparent; }
+.ag-prev { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-height: 64vh; overflow: auto; padding: 4px; }
+.ag-prev-i { width: calc(119mm * 0.78); height: calc(176mm * 0.78); flex: none; }
+.ag-prev-i .agt { transform: scale(0.78); transform-origin: 0 0; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+
 /* ---------- impresión (formatos oficiales) ---------- */
 #print-area { display: none; }
 .doc { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11.5pt; line-height: 1.45; }

@@ -57,6 +57,7 @@
       comunicados: [],
       examenes: [],
       listas: [],
+      atencion: null,
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };
