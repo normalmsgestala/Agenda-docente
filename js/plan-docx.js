@@ -5,6 +5,7 @@
   'use strict';
   const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const MESES = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };
+  const MESES_C = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, set: 9, oct: 10, nov: 11, dic: 12 };
   const kids = (el, name) => Array.from(el.childNodes).filter((n) => n.namespaceURI === W && n.localName === name);
   const textoP = (p) => Array.from(p.getElementsByTagNameNS(W, 't')).map((t) => t.textContent).join('');
   const textoCelda = (tc) => kids(tc, 'p').map(textoP).join('\n').trim();
@@ -28,7 +29,8 @@
     let anioIni = new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
     let nombrePlan = file.name.replace(/\.[^.]+$/, ''), periodo = '';
     let proyecto = '', instrumentoTxt = '', pendientes = [], esperandoCriterios = false;
-    let meta = { contenidos: {}, pdas: {}, pregunta: '' };
+    let meta = { contenidos: {}, pdas: {}, pregunta: '' }, proyPD = null;
+    const mnom = nombrePlan.match(/(?:planeaci[oó]n|plano[\s_-]*did[aá]ctico)[\s_-]*(\d+)/i); if (mnom) nombrePlan = `Planeación ${Number(mnom[1])}`;
     const sesiones = [];
 
     for (const el of Array.from(body.childNodes)) {
@@ -37,6 +39,7 @@
         const t = textoP(el).trim();
         const mi = t.match(/^Instrumento\s*:\s*([^·«]+)/i);
         if (mi) { instrumentoTxt = mi[1].trim(); esperandoCriterios = true; }
+        const mpp = t.match(/Periodo\s*:\s*(.+)$/i); if (mpp && !periodo) { periodo = mpp[1].trim(); const my = periodo.match(/([a-záéíóú]+)\s+de\s+(\d{4})\s*$/i); if (my && MESES[WD.norm(my[1])]) anioIni = MESES[WD.norm(my[1])] >= 8 ? Number(my[2]) : Number(my[2]) - 1; }
         continue;
       }
       if (el.localName !== 'tbl') continue;
@@ -54,6 +57,43 @@
         for (const m of plano.matchAll(/^\s*P(\d+)\s*:\s*(.+)$/gm)) meta.pdas['P' + m[1]] = m[2].trim();
       }
       const mpreg = plano.match(/Pregunta detonadora\s*:\s*([^\n]+)/i); if (mpreg && !meta.pregunta) { const q = mpreg[1].match(/¿[^?]*\?/); meta.pregunta = (q ? q[0] : mpreg[1]).trim(); }
+      // Formato «plano didáctico»: tabla del proyecto (Campo formativo | …) y tabla de sesiones (Proceso de desarrollo | Sesión | Actividades | Evaluación | Páginas)
+      if (WD.norm(fs[0][0]) === 'campo formativo' && fs[0][1]) {
+        const v = (et) => (fs.find((r) => WD.norm(r[0]).startsWith(et)) || [])[1] || '';
+        const tit = v('titulo'); const prop = v('proposito'); const q = prop.match(/Pregunta detonadora\s*:\s*(¿[^?]*\?)/i);
+        proyPD = { campo: campoDe(fs[0][1]), proyecto: ((tit.match(/«([^»]+)»/) || [])[1] || tit.split('·')[0]).trim(), libro: tit.split('·').slice(1).join('·').trim(), contenido: v('contenido').replace(/^\s*\*\s*/gm, '').trim(), pregunta: q ? q[1] : '' };
+        continue;
+      }
+      if (/^proceso de desarrollo/.test(WD.norm(fs[0][0])) && proyPD && proyPD.campo) {
+        let ult = null;
+        for (const r of fs.slice(1)) {
+          if (/^\s*Ajustes\s*:/i.test(r[0] || '')) { const extra = r.map((c) => quitar(c, 'Ajustes')).filter(Boolean).join(' '); if (ult && extra) ult.ajustes = [ult.ajustes, extra].filter(Boolean).join('\n'); continue; }
+          const ses = (r[1] || '').split('\n').map((x) => x.trim()).filter(Boolean);
+          const mn = (ses[0] || '').match(/(\d+)\s*\/\s*(\d+)/); const md = (ses[1] || '').match(/(\d{1,2})\s+(?:de\s+)?([a-záéíóú]+)/i);
+          if (!mn || !md) continue;
+          const mes = MESES[WD.norm(md[2])] || MESES_C[WD.norm(md[2]).slice(0, 3)]; if (!mes) continue;
+          const anio = mes >= 8 ? anioIni : anioIni + 1;
+          const mh = (ses[2] || '').match(/(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/);
+          const fase = (mh ? ses[3] : ses[2]) || '';
+          // Actividades: Inicio / Desarrollo / Cierre / Tarea / Ajustes razonables
+          const sec = { inicio: [], desarrollo: [], cierre: [], tarea: [], ajustes: [] }; let cur = 'inicio';
+          (r[2] || '').split('\n').forEach((ln) => { const m = ln.match(/^\s*(Inicio|Desarrollo|Cierre|Tarea|Ajustes razonables)\s*:\s*(.*)$/i); if (m) { cur = { inicio: 'inicio', desarrollo: 'desarrollo', cierre: 'cierre', tarea: 'tarea' }[WD.norm(m[1])] || 'ajustes'; if (m[2].trim()) sec[cur].push(m[2].trim()); } else if (ln.trim()) sec[cur].push(ln.trim()); });
+          const evalL = (r[3] || '').split('\n').map((x) => x.trim()).filter(Boolean); const instL = evalL.find((x) => /^Instrumento\s*:/i.test(x)) || '';
+          const evid = evalL.filter((x) => x !== instL).join(' ');
+          const pdaM = (r[0] || '').match(/^\s*(P\d+)\.?\s*([\s\S]*)$/);
+          const s = {
+            id: WD.uid(), numero: `${mn[1]}/${mn[2]}`, fecha: `${anio}-${WD.pad(mes)}-${WD.pad(Number(md[1]))}`, campo: proyPD.campo,
+            hora: mh ? mh[1].padStart(5, '0') : '', horaFin: mh ? mh[2].padStart(5, '0') : '',
+            proyecto: proyPD.proyecto, titulo: [proyPD.proyecto, fase.split(',')[0].trim()].filter(Boolean).join(' · '), faseProyecto: fase,
+            pda: pdaM ? pdaM[1] : '', contenido: proyPD.contenido, pdaTexto: pdaM ? [`${pdaM[1]}: ${pdaM[2].trim()}`] : (r[0] ? [r[0].trim()] : []), pregunta: proyPD.pregunta,
+            paginas: [(r[4] || '').replace(/\n/g, ' · '), proyPD.libro].filter(Boolean).join(' · '),
+            inicio: sec.inicio.join('\n'), desarrollo: sec.desarrollo.join('\n'), cierre: sec.cierre.join('\n'), tarea: sec.tarea.join('\n'), ajustes: sec.ajustes.join('\n'),
+            recursos: '', evidencias: evid.replace(/\((r[uú]brica|lista de cotejo|escala[^)]*)\)/ig, '').trim(), instrumento: instrumentoDe(instL || evid), instrumentoNombre: quitar(instL, 'Instrumento'), criterios: [], detalle: true,
+          };
+          sesiones.push(s); ult = s;
+        }
+        continue;
+      }
       // Tabla de una sesión
       if (WD.norm(fs[0][0]) === 'sesion' && fs.length >= 4) {
         const [s0, tema = '', fase = '', campoTxt = ''] = fs[1];

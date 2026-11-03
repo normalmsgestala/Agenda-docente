@@ -20,6 +20,11 @@
       try {
         const planes = await WD.leerPlaneacionDocx(file);
         if (planes && planes.length) {
+          // Si ya habías subido esta misma planeación, se reemplaza (las calificaciones se conservan)
+          const igual = (x) => planes.some((p) => p.nombre === x.nombre && p.periodo && p.periodo === x.periodo);
+          const viejas = new Set(WD.state.planeaciones.filter(igual).flatMap((x) => x.sesiones.map((s) => s.id)));
+          WD.state.planeaciones = WD.state.planeaciones.filter((x) => !igual(x));
+          WD.state.actividades = WD.state.actividades.filter((a) => !viejas.has(a.sesionId) || Object.keys(a.calif || {}).length);
           WD.state.planeaciones.push(...planes); crearActividades(planes); WD.save(); WD.refrescar();
           const n = planes.reduce((k, p) => k + p.sesiones.length, 0);
           const porCampo = WD.CAMPOS.map((c) => `${WD.CAMPO_CORTO[c]} ${planes[0].sesiones.filter((s) => s.campo === c).length}`).join(', ');
