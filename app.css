@@ -365,6 +365,13 @@ body.expo-on .pet { display: none; }
 .k-proy div { display: grid; gap: 2px; font-size: clamp(20px, 2.2vw, 30px); } .k-proy b { color: var(--accent); }
 .cumple-m svg { width: clamp(140px, 18vw, 240px); height: auto; }
 
+/* ---------- listas y notas ---------- */
+.ls-ck { width: 40px; height: 36px; border-radius: 9px; border: 1.5px solid var(--line-2); background: var(--surface); font-family: inherit; font-weight: 700; font-size: 19px; line-height: 1; cursor: pointer; color: var(--ink); }
+.ls-ck.ok { background: var(--ok); border-color: var(--ok); color: #fff; } .ls-ck.no { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.ls-h { background: none; border: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; text-decoration: underline dotted; white-space: normal; max-width: 140px; }
+.tbl.ls .ls-n { min-width: 180px; padding: 6px 10px; }
+.tbl.ls tfoot td { background: var(--surface-2); }
+
 /* ---------- exámenes ---------- */
 .exk { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 4px 24px; }
 .exk-f { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--line); }
