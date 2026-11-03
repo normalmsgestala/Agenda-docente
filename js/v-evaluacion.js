@@ -2,7 +2,7 @@
 (function (WD) {
   'use strict';
   const { esc } = WD;
-  let tri = null, tab = 'grupo', alumnoSel = null, campoAct = 'todos';
+  let tri = null, tab = 'calificar', alumnoSel = null, campoAct = 'todos';
   const triIdx = () => WD.state.trimestres.findIndex((t) => t.n === tri);
   const INST = { nota: 'Calificación directa', cotejo: 'Lista de cotejo', rubrica: 'Rúbrica' };
   const NIVEL = ['', 'Requiere apoyo', 'En proceso', 'Logrado', 'Destacado'];
@@ -58,6 +58,9 @@
       <p class="tiny muted">Si dejas “Cuánto vale” vacío, el valor se reparte solo para que con todo bien hecho el alumno saque 10. Lo que aún no calificas no baja el promedio; usa NE si no lo entregó.</p>
       ${act.instrumento !== 'nota' ? `<label class="field"><span>Criterios (uno por renglón)</span><textarea class="in" id="act-crit" style="min-height:80px">${esc((act.criterios || []).join('\n'))}</textarea></label>
         ${act.instrumento === 'rubrica' ? `<p class="tiny muted">Niveles: 1 Requiere apoyo · 2 En proceso · 3 Logrado · 4 Destacado.</p>` : ''}` : ''}
+      ${contextoHTML(act)}
+      ${als.length ? `<div class="row" style="gap:6px"><span class="small muted" style="flex:1">${als.filter((a) => WD.califActividad(act, a.id) !== null).length} de ${als.length} calificados</span><button class="btn sm" data-act="calTodos" data-a="${act.id}">${act.instrumento === 'nota' || !(act.criterios || []).length ? 'A los que faltan: 10' : act.instrumento === 'cotejo' ? 'A los que faltan: cumple todo' : 'A los que faltan: Logrado (3)'}</button><button class="btn sm" data-act="calNE" data-a="${act.id}">A los que faltan: NE</button></div>
+        <p class="tiny muted" style="margin:-6px 0 0">Marca primero a todos y luego corrige solo a los que no. Los que ya calificaste no cambian.</p>` : ''}
       ${als.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th>${INST[act.instrumento] || ''}</th><th class="c">Foto</th><th class="r">Nota</th></tr></thead><tbody>${als.map((a) => filaAlumno(act, a, fotos)).join('')}</tbody></table></div>` : '<div class="empty small">Carga a tus alumnos en Mi grupo para evaluar.</div>'}
       <div class="row"><span style="flex:1"></span><button class="btn danger" data-act="borrarActividad" data-id="${act.id}">Eliminar actividad</button></div>`,
       (b) => {
@@ -71,6 +74,26 @@
         }));
       }, `${esc(WD.CAMPO_CORTO[act.campo])} · ${esc(WD.RUBROS.find((r) => r.id === act.rubro).nombre)} · Trimestre ${act.trimestre}`);
   };
+  // Lo que se evalúa, a la vista: criterios con su texto y lo que dice la planeación
+  const sesionDe = (act) => act.sesionId && WD.state.planeaciones.flatMap((p) => p.sesiones).find((x) => x.id === act.sesionId);
+  WD.sesionDeActividad = sesionDe;
+  function contextoHTML(act) {
+    const s = sesionDe(act); const crit = act.criterios || [];
+    if (!s && !crit.length) return '';
+    return `<div class="card flat stack" style="background:var(--surface-2);border:0;gap:6px">
+      <div class="row"><b style="flex:1">Qué se evalúa</b>${act.instrumento !== 'nota' ? `<span class="pill">${INST[act.instrumento]}</span>` : ''}</div>
+      ${crit.length ? `<ol class="small" style="margin:0;padding-left:20px">${crit.map((c) => `<li>${esc(c)}</li>`).join('')}</ol>` : ''}
+      ${act.instrumento === 'rubrica' && crit.length ? '<p class="tiny muted" style="margin:0">Niveles: 1 Requiere apoyo · 2 En proceso · 3 Logrado · 4 Destacado.</p>' : ''}
+      ${s ? `<details><summary class="small muted" style="cursor:pointer">De la planeación: ${esc(s.pda || '')} ${esc(WD.fechaLarga(s.fecha))}</summary><div class="small stack" style="gap:4px;margin-top:6px">${(s.pdaTexto || []).map((x) => `<div>${esc(x)}</div>`).join('')}${s.evidencias ? `<div><b>Evaluación:</b> ${esc(s.evidencias)}</div>` : ''}${s.cierre ? `<div><b>Cierre:</b> ${esc(s.cierre)}</div>` : ''}</div></details>` : ''}
+    </div>`;
+  }
+  WD.act.calTodos = (el) => {
+    const act = actDe(el); act.calif = act.calif || {}; const crit = act.criterios || [];
+    WD.alumnosActivos().forEach((a) => { if (WD.califActividad(act, a.id) !== null) return;
+      act.calif[a.id] = act.instrumento === 'nota' || !crit.length ? 10 : act.instrumento === 'cotejo' ? { checks: crit.map(() => true) } : { niveles: crit.map(() => 3) }; });
+    WD.save(); repintar(act); WD.toast('Listo. Ahora corrige solo a los que no.');
+  };
+  WD.act.calNE = (el) => { const act = actDe(el); act.calif = act.calif || {}; WD.alumnosActivos().forEach((a) => { if (WD.califActividad(act, a.id) === null) act.calif[a.id] = 0; }); WD.save(); repintar(act); };
   const actDe = (el) => WD.state.actividades.find((a) => a.id === el.dataset.a);
   const repintar = (act) => { const y = document.querySelector('.drawer-b')?.scrollTop; WD.abrirActividad(act.id).then(() => { const b = document.querySelector('.drawer-b'); if (b) b.scrollTop = y; }); };
   WD.act.calNota = (el) => { const act = actDe(el); act.calif = act.calif || {}; const v = Number(el.dataset.v); act.calif[el.dataset.al] = act.calif[el.dataset.al] === v ? null : v; WD.save(); repintar(act); };
@@ -139,7 +162,7 @@
       const T = WD.state.trimestres[triIdx()]; const als = WD.alumnosActivos();
       const head = `<div class="row"><div style="flex:1;min-width:0"><h1>Evaluación</h1><p class="muted">Escala de 5 a 10 · Trimestre ${tri}</p></div>
         <div class="tabs">${[1, 2, 3].map((n) => `<button class="${tri === n ? 'on' : ''}" data-act="evTri" data-n="${n}">Trimestre ${n}</button>`).join('')}</div></div>
-        <div class="row"><div class="tabs">${[['grupo', 'Todo el grupo'], ['alumno', 'Por alumno'], ['actividades', 'Actividades'], ['valores', 'Valores del trimestre']].map(([t, n]) => `<button class="${tab === t ? 'on' : ''}" data-act="evTab" data-t="${t}">${n}</button>`).join('')}</div><span style="flex:1"></span>
+        <div class="row"><div class="tabs">${[['calificar', 'Por calificar'], ['grupo', 'Todo el grupo'], ['alumno', 'Por alumno'], ['actividades', 'Actividades'], ['valores', 'Valores del trimestre']].map(([t, n]) => `<button class="${tab === t ? 'on' : ''}" data-act="evTab" data-t="${t}">${n}</button>`).join('')}</div><span style="flex:1"></span>
         <button class="btn" data-act="excelEval">${WD.icon('descargar')} Excel</button><button class="btn" data-act="imprimirGrupo">${WD.icon('imprimir')} Reporte general</button><button class="btn" data-act="reportesTodos">${WD.icon('imprimir')} Individuales</button></div>`;
       if (tab === 'valores') {
         const suma = (c) => WD.RUBROS.reduce((s, r) => s + (Number(T.pesos[c][r.id]) || 0), 0);
@@ -159,6 +182,16 @@
             ${acts.map((a) => { const cal = als.map((x) => WD.califActividad(a, x.id)).filter((v) => v !== null); return `<tr><td class="num">${esc(a.fecha || '')}</td><td><button class="link" data-act="verActividad" data-id="${a.id}">${esc(a.nombre || 'Sin nombre')}</button>${a.sesionId ? ' <span class="pill">planeación</span>' : ''}</td><td>${WD.CAMPO_CORTO[a.campo]}</td><td>${WD.RUBROS.find((r) => r.id === a.rubro).nombre}</td><td>${INST[a.instrumento]}</td><td class="r">${a.valor ?? `<span class="faint">${valorAuto(a)}</span>`}%</td><td class="r">${cal.length}/${als.length}</td><td class="r">${cal.length ? WD.round1(cal.reduce((s, v) => s + v, 0) / cal.length) : '—'}</td></tr>`; }).join('')}
           </tbody></table></div><p class="tiny muted">El valor gris es automático (se reparte solo). Toca una actividad para calificar o cambiar su valor.</p>`
           : `<div class="empty"><h3>Sin actividades en el trimestre ${tri}</h3><p class="small">Se crean solas cuando evalúas una sesión de tu planeación, o agrégalas con los botones de arriba.</p></div>`}`;
+      }
+      if (tab === 'calificar') {
+        const hoy = WD.iso(new Date()); const fin = WD.iso(WD.addDays(new Date(), 6 - new Date().getDay()));
+        const acts = WD.state.actividades.filter((a) => a.trimestre === tri && (a.fecha || '') <= fin).sort((x, y) => (y.fecha || '').localeCompare(x.fecha || ''));
+        const semanas = []; acts.forEach((a) => { const l = WD.iso(WD.lunesDe(WD.parseISO(a.fecha || hoy))); let w = semanas.find((x) => x.l === l); if (!w) semanas.push((w = { l, acts: [] })); w.acts.push(a); });
+        const pend = acts.filter((a) => als.some((x) => WD.califActividad(a, x.id) === null)).length;
+        return head + `<p class="small muted" style="margin:0">${pend ? `<b>${pend}</b> actividad${pend === 1 ? '' : 'es'} con alumnos sin calificar.` : 'Todo calificado.'} Toca una actividad para ver qué se evalúa y calificar a todo el grupo.</p>
+          ${semanas.length ? semanas.map((w) => `<div class="stack" style="gap:8px"><div class="label">Semana del ${esc(WD.fechaLarga(w.l))}</div>${w.acts.map((a) => { const n = als.filter((x) => WD.califActividad(a, x.id) !== null).length; const ne = als.filter((x) => (a.calif || {})[x.id] === 0).length; const pct = als.length ? n / als.length : 0;
+            return `<button class="card row dg-ap" data-act="verActividad" data-id="${a.id}" style="gap:10px"><span class="pill">${WD.CAMPO_CORTO[a.campo]}</span><div style="flex:1;min-width:0;text-align:left"><b>${esc(a.nombre || 'Sin nombre')}</b><div class="tiny muted">${esc(WD.fechaLarga(a.fecha))} · ${INST[a.instrumento]}${(a.criterios || []).length ? ` · ${a.criterios.length} criterio${a.criterios.length === 1 ? '' : 's'}` : ''}${a.fecha > hoy ? ' · próxima' : ''}</div></div>${ne ? `<span class="pill bad">${ne} NE</span>` : ''}<span class="pill ${n === als.length ? 'ok' : n ? 'warn' : ''}">${n}/${als.length}</span><div style="width:60px;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden"><i style="display:block;height:100%;width:${pct * 100}%;background:var(--${n === als.length ? 'ok' : 'warn'})"></i></div></button>`; }).join('')}</div>`).join('')
+            : `<div class="empty"><h3>Sin actividades en el trimestre ${tri}</h3><p class="small">Sube tu planeación y aquí aparecen sus actividades para evaluar.</p></div>`}`;
       }
       if (tab === 'alumno') {
         alumnoSel = alumnoSel && WD.alumno(alumnoSel) ? alumnoSel : als[0].id;

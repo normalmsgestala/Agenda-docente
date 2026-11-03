@@ -19,6 +19,7 @@
   const PREGUNTAS = ['¿Qué tipo de animal es el conejo?', '¿De qué está cubierto su cuerpo y de qué colores puede ser?', '¿Para qué le ayudan sus orejas largas?', '¿Qué tienen de interesante sus dientes?', '¿Por qué debe desgastar sus dientes todo el tiempo?'];
   const LECTURAS = ['No lector', 'Silábica', 'Palabra por palabra', 'Corriente / Fluida'];
   const ICE_NIV = ['Requiere apoyo', 'En desarrollo', 'Nivel esperado']; const ICE_CLS = ['bad', 'warn', 'ok'];
+  const ICE4 = ['', 'Inicial', 'Básico', 'Avanzado', 'Profesional']; const ICE4_CLS = ['', 'bad', 'warn', '', 'ok']; // escala 1 a 4 de la agenda
   const GUIA = {
     'Presilábico': 'Aún no relaciona sonidos con letras: usa letras al azar, un repertorio fijo o pone muchas letras aunque la palabra sea corta (en «sol» escribe 3 o más letras sin relación).',
     'Silábico': 'Pone una letra por cada sílaba: «mariposa» con 4 letras, «sol» con 1, «loro» con 2.',
@@ -30,7 +31,9 @@
   let abierta = null;
   const diag = (id) => lista().find((d) => d.id === id);
   const resDe = (d, alId) => (d.res[alId] = d.res[alId] || (d.tipo === 'idai' ? { pal: {}, letras: {}, nivel: '', obs: '' } : { rub: {}, obs: '', lectura: { tipo: '', seg: null, comp: [] } }));
-  const capturado = (d, r) => !!r && (d.tipo === 'idai' ? !!(r.nivel || Object.values(r.letras || {}).some(Boolean)) : Object.keys(r.rub || {}).length > 0);
+  const tieneRub = (r) => !!r && Object.keys(r.rub || {}).length > 0;
+  const capturado = (d, r) => !!r && (d.tipo === 'idai' ? !!(r.nivel || Object.values(r.letras || {}).some(Boolean)) : tieneRub(r) || !!r.nivel4);
+  const pill4 = (r) => (r && r.nivel4 ? `<span class="pill ${ICE4_CLS[r.nivel4]}">${r.nivel4} · ${ICE4[r.nivel4]}</span>` : '');
 
   /* ---------- reglas ---------- */
   // Auditoría IDAI (Emilia Ferreiro): cuenta grafías contra sílabas y fonemas de cada palabra dictada
@@ -123,7 +126,8 @@
   function htmlIce(d, r, alId, base) {
     const s = puntajeIce(r); const v = ppm(r);
     const item = ([k, t]) => `<button class="dg-it ${r.rub?.[k] === true ? 'on' : r.rub?.[k] === false ? 'no' : ''}" data-act="diagItem" data-k="${k}">${esc(t)}</button>`;
-    return `<div class="row"><span class="pill ${s.cls}" style="font-size:14px">${s.nivel}</span><b>${s.t} de 45</b><span class="small muted">${s.pct}% · dictado ${s.o}/39 · puntuación ${s.p}/6</span><span style="flex:1"></span>${fotoBtn('ice', 'Leer foto')}</div>
+    return `<div class="stack" style="gap:6px"><div class="label">Nivel (escala 1 a 4)</div><div class="row" style="gap:6px">${[1, 2, 3, 4].map((n) => `<button class="btn sm ${r.nivel4 === n ? 'pri' : ''}" data-act="diagNivel4" data-n="${n}">${n} · ${ICE4[n]}</button>`).join('')}</div><p class="tiny muted" style="margin:0">Si ya tienes el nivel (por ejemplo, del diagnóstico de tu agenda), basta con marcarlo. Los reactivos de abajo son opcionales.</p></div><div class="sep"></div>
+      <div class="row">${tieneRub(r) ? `<span class="pill ${s.cls}" style="font-size:14px">${s.nivel}</span>` : ''}<b>${s.t} de 45</b><span class="small muted">${s.pct}% · dictado ${s.o}/39 · puntuación ${s.p}/6</span><span style="flex:1"></span>${fotoBtn('ice', 'Leer foto')}</div>
       <p class="tiny muted" style="margin:0">Toca cada reactivo: verde sí lo logró, rojo no. Lo que no marques cuenta como no logrado.</p>
       ${ORACIONES.map(([t, its], i) => `<div class="stack" style="gap:6px"><div class="row"><div class="small" style="flex:1"><b>${i + 1}.</b> ${esc(t)}</div><button class="btn sm ghost" data-act="diagOra" data-i="${i}">Todo bien</button></div><div class="dg-its">${its.map(item).join('')}</div></div>`).join('')}
       <div class="stack" style="gap:6px"><div class="row"><div class="small" style="flex:1"><b>Texto «El conejo»</b> · puntuación</div><button class="btn sm ghost" data-act="diagOra" data-i="p">Todo bien</button></div><div class="dg-its">${PUNTUACION.map(item).join('')}</div></div>
@@ -140,6 +144,7 @@
   const conCtx = (fn) => (el) => { const { d, al } = ctx(); if (!d) return; fn(resDe(d, al), el, d); WD.save(); repintar(d, al); };
   WD.act.diagAl = (el) => { if (el.dataset.al) abrirAlumno(el.dataset.d, el.dataset.al); };
   WD.act.diagNivel = conCtx((r, el) => { r.nivel = r.nivel === el.dataset.n ? '' : el.dataset.n; });
+  WD.act.diagNivel4 = conCtx((r, el) => { const n = Number(el.dataset.n); r.nivel4 = r.nivel4 === n ? null : n; });
   WD.act.diagUsar = conCtx((r, el) => { r.nivel = el.dataset.n; });
   WD.act.diagLetra = conCtx((r, el) => { r.letras[el.dataset.l] = !r.letras[el.dataset.l]; });
   WD.act.diagLetras = conCtx((r, el) => { LETRAS.forEach((l) => { r.letras[l] = el.dataset.v === '1'; }); });
@@ -189,8 +194,8 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       rows.push(['', 'TOTALES', ...NIVELES.map((n) => als.filter((a) => d.res[a.id]?.nivel === n).length), ...Object.keys(PALABRAS).map(() => ''), ...LETRAS.map((l) => als.filter((a) => d.res[a.id]?.letras?.[l]).length)]);
     } else {
       const ids = [...ITEMS_ORA, ...ITEMS_PUN]; const tit = [...ORACIONES.flatMap((o, i) => o[1].map((x) => `O${i + 1}: ${x[1]}`)), ...PUNTUACION.map((x) => x[1])];
-      rows = [['Nº', 'Alumno', ...tit, 'Dictado /39', 'Puntuación /6', 'Total /45', '%', 'Diagnóstico', 'Tipo de lectura', 'Palabras por minuto', 'Comprensión /5', 'Observaciones']];
-      als.forEach((a) => { const r = d.res[a.id]; if (!capturado(d, r)) { rows.push([a.num || '', WD.nombreLista(a)]); return; } const s = puntajeIce(r); rows.push([a.num || '', WD.nombreLista(a), ...ids.map((k) => (r.rub[k] === true ? 1 : 0)), s.o, s.p, s.t, s.pct, s.nivel, r.lectura?.tipo || '', ppm(r) ?? '', (r.lectura?.comp || []).filter((x) => x === true).length, r.obs || '']); });
+      rows = [['Nº', 'Alumno', ...tit, 'Dictado /39', 'Puntuación /6', 'Total /45', '%', 'Diagnóstico', 'Nivel (1 a 4)', 'Tipo de lectura', 'Palabras por minuto', 'Comprensión /5', 'Observaciones']];
+      als.forEach((a) => { const r = d.res[a.id]; if (!capturado(d, r)) { rows.push([a.num || '', WD.nombreLista(a)]); return; } const s = puntajeIce(r); const rb = tieneRub(r); rows.push([a.num || '', WD.nombreLista(a), ...ids.map((k) => (rb ? (r.rub[k] === true ? 1 : 0) : '')), rb ? s.o : '', rb ? s.p : '', rb ? s.t : '', rb ? s.pct : '', rb ? s.nivel : '', r.nivel4 ? `${r.nivel4} ${ICE4[r.nivel4]}` : '', r.lectura?.tipo || '', ppm(r) ?? '', (r.lectura?.comp || []).filter((x) => x === true).length, r.obs || '']); });
     }
     const e = WD.state.escuela; WD.download(await WD.xlsxBlob([{ name: d.tipo === 'idai' ? 'IDAI' : 'ICE', rows, widths: [5, 32] }]), `${[d.nombre, `${e.grado || ''}${e.grupo || ''}`].filter((x) => x.trim()).join(' ').replace(/[^\wáéíóúñ]+/gi, '_')}.xlsx`);
   };
@@ -200,7 +205,8 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       tabla = `<table><thead><tr><th>Nº</th><th>Alumno</th>${NIVELES.map((n) => `<th>${n}</th>`).join('')}<th>Letras /27</th></tr></thead><tbody>${als.map((a) => { const r = d.res[a.id] || {}; return `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td>${NIVELES.map((n) => `<td style="text-align:center">${r.nivel === n ? 'X' : ''}</td>`).join('')}<td style="text-align:center">${capturado(d, r) ? nLetras(r) : ''}</td></tr>`; }).join('')}
         <tr><td></td><td><b>TOTAL</b></td>${NIVELES.map((n) => `<td style="text-align:center"><b>${als.filter((a) => d.res[a.id]?.nivel === n).length}</b></td>`).join('')}<td></td></tr></tbody></table>`;
     } else {
-      tabla = `<table><thead><tr><th>Nº</th><th>Alumno</th><th>Dictado /39</th><th>Puntuación /6</th><th>Total /45</th><th>%</th><th>Diagnóstico</th></tr></thead><tbody>${als.map((a) => { const r = d.res[a.id]; if (!capturado(d, r)) return `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td><td colspan="5"></td></tr>`; const s = puntajeIce(r); return `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td><td style="text-align:center">${s.o}</td><td style="text-align:center">${s.p}</td><td style="text-align:center"><b>${s.t}</b></td><td style="text-align:center">${s.pct}%</td><td>${s.nivel}</td></tr>`; }).join('')}</tbody></table>`;
+      tabla = `<table><thead><tr><th>Nº</th><th>Alumno</th><th>Dictado /39</th><th>Puntuación /6</th><th>Total /45</th><th>%</th><th>Diagnóstico</th><th>Nivel (1 a 4)</th></tr></thead><tbody>${als.map((a) => { const r = d.res[a.id]; if (!capturado(d, r)) return `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td><td colspan="6" style="text-align:center">—</td></tr>`; const s = puntajeIce(r); const rb = tieneRub(r); const c = (x) => `<td style="text-align:center">${rb ? x : ''}</td>`; return `<tr><td>${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td>${c(s.o)}${c(s.p)}${c(`<b>${s.t}</b>`)}${c(s.pct + '%')}<td>${rb ? s.nivel : ''}</td><td>${r.nivel4 ? `${r.nivel4} · ${ICE4[r.nivel4]}` : ''}</td></tr>`; }).join('')}
+        <tr><td></td><td><b>TOTAL</b></td><td colspan="6">${[1, 2, 3, 4].map((n) => `${n} ${ICE4[n]}: <b>${als.filter((a) => d.res[a.id]?.nivel4 === n).length}</b>`).join(' · ')} · Sin registro: <b>${als.filter((a) => !capturado(d, d.res[a.id])).length}</b></td></tr></tbody></table>`;
     }
     WD.vistaDocumento('Concentrado', `${WD.membrete()}<h2>${d.tipo === 'idai' ? 'INSTRUMENTO DIAGNÓSTICO DE ALFABETIZACIÓN INICIAL (IDAI)' : 'CONVENCIONES BÁSICAS DE LA LENGUA ESCRITA (ICE)'}</h2><p style="text-align:center;margin-top:-8px">${esc(d.nombre)} · ${esc(WD.fechaLarga(d.fecha))}</p>${tabla}${WD.piePagina()}`);
   };
@@ -216,21 +222,53 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
     <div class="label">ICE · oraciones</div><ol class="small" style="margin:0;padding-left:20px">${ORACIONES.map((o) => `<li>${esc(o[0])}</li>`).join('')}</ol>
     <div class="label">Preguntas de comprensión de «El conejo»</div><ol class="small" style="margin:0;padding-left:20px">${PREGUNTAS.map((q) => `<li>${esc(q)}</li>`).join('')}</ol>`);
 
+  /* ---------- importar niveles (archivo: Nº, Alumno, IDAI, ICE) ---------- */
+  const IDAI_COD = { ps: 'Presilábico', presilabico: 'Presilábico', s: 'Silábico', silabico: 'Silábico', sa: 'Silábico Alfabético', 'silabico alfabetico': 'Silábico Alfabético', 'silabico-alfabetico': 'Silábico Alfabético', a: 'Alfabético', alfabetico: 'Alfabético' };
+  function buscarAlumno(als, num, nombre) {
+    const n = Number(num); const porNum = n ? als.filter((a) => Number(a.num) === n) : [];
+    const tk = WD.norm(nombre).replace(/[^a-zñ ]/g, ' ').split(/\s+/).filter((t) => t.length > 1);
+    const puntos = (a) => { const t = new Set(WD.norm(WD.nombreCompleto(a)).split(/\s+/)); return tk.filter((x) => t.has(x)).length; };
+    if (porNum.length === 1 && (!tk.length || puntos(porNum[0]) >= 1)) return porNum[0];
+    const mejor = als.map((a) => [a, puntos(a)]).sort((x, y) => y[1] - x[1])[0]; return mejor && mejor[1] >= 2 ? mejor[0] : porNum[0] || null;
+  }
+  const aplicacion = (tipo) => lista().find((d) => d.tipo === tipo && /diagn/i.test(d.nombre)) || (() => { const d = { id: WD.uid(), tipo, nombre: `${tipo === 'idai' ? 'IDAI' : 'ICE'} · Diagnóstico`, fecha: WD.iso(new Date()), res: {} }; lista().push(d); return d; })();
+  WD.act.diagImportar = () => { const i = document.getElementById('dg-imp'); i.value = ''; i.click(); };
+  async function importar(file) {
+    let rows; try { rows = await WD.readSheet(file); } catch (e) { WD.toast('No pude leer el archivo.'); return; }
+    const als = WD.alumnosActivos(); if (!als.length) { WD.toast('Primero carga a tus alumnos en Mi grupo.'); return; }
+    const cab = rows.findIndex((r) => r.some((c) => /idai/i.test(c)) || r.some((c) => /ice/i.test(c)));
+    const h = (rows[cab] || []).map((c) => WD.norm(c)); const col = (re, def) => { const k = h.findIndex((c) => re.test(c)); return k >= 0 ? k : def; };
+    const cN = col(/^n/, 0), cA = col(/alumn|nombre/, 1), cI = col(/idai/, 2), cE = col(/ice/, 3);
+    const di = aplicacion('idai'), de = aplicacion('ice'); let nI = 0, nE = 0; const sin = [];
+    rows.slice(cab + 1).forEach((r) => {
+      if (!r[cA] && !r[cN]) return; const a = buscarAlumno(als, r[cN], r[cA] || ''); if (!a) { if (String(r[cA] || '').trim()) sin.push(r[cA]); return; }
+      const ni = IDAI_COD[WD.norm(r[cI] || '').trim()]; if (ni) { resDe(di, a.id).nivel = ni; nI++; }
+      const ne = Number(String(r[cE] || '').trim()); if (ne >= 1 && ne <= 4) { resDe(de, a.id).nivel4 = ne; nE++; }
+    });
+    if (!nI && di.res && !Object.keys(di.res).length) WD.state.diagnosticos = lista().filter((x) => x !== di);
+    if (!nE && de.res && !Object.keys(de.res).length) WD.state.diagnosticos = lista().filter((x) => x !== de);
+    WD.save(); WD.refrescar();
+    WD.petDecir(`Listo: puse el nivel IDAI a ${nI} alumnos y el nivel ICE a ${nE}.${sin.length ? ` No encontré a: ${sin.slice(0, 5).join(', ')}.` : ''} Quedan en «${di.nombre}» y «${de.nombre}».`, 'idai');
+  }
+
   /* ---------- vista ---------- */
   function resumen(d, als) {
     const hechos = als.filter((a) => capturado(d, d.res[a.id])); if (!hechos.length) return '';
-    const grupos = d.tipo === 'idai' ? NIVELES.map((n) => [n, NIV_CLS[n], hechos.filter((a) => d.res[a.id].nivel === n).length]) : ICE_NIV.map((n, i) => [n, ICE_CLS[i], hechos.filter((a) => puntajeIce(d.res[a.id]).nivel === n).length]);
-    const extra = d.tipo === 'idai' ? `Promedio de letras: <b>${WD.round1(hechos.reduce((s, a) => s + nLetras(d.res[a.id]), 0) / hechos.length)}</b> de 27` : `Promedio: <b>${WD.round1(hechos.reduce((s, a) => s + puntajeIce(d.res[a.id]).t, 0) / hechos.length)}</b> de 45`;
+    const por4 = d.tipo === 'ice' && hechos.some((a) => !tieneRub(d.res[a.id]));
+    const grupos = d.tipo === 'idai' ? NIVELES.map((n) => [n, NIV_CLS[n], hechos.filter((a) => d.res[a.id].nivel === n).length]) : por4 ? [1, 2, 3, 4].map((n) => [`${n} · ${ICE4[n]}`, ICE4_CLS[n], hechos.filter((a) => d.res[a.id].nivel4 === n).length]) : ICE_NIV.map((n, i) => [n, ICE_CLS[i], hechos.filter((a) => puntajeIce(d.res[a.id]).nivel === n).length]);
+    const letrasH = hechos.filter((a) => nLetras(d.res[a.id] || {}));
+    const extra = d.tipo === 'idai' ? (letrasH.length ? `Promedio de letras: <b>${WD.round1(letrasH.reduce((s, a) => s + nLetras(d.res[a.id]), 0) / letrasH.length)}</b> de 27` : '') : por4 ? `${als.length - hechos.length} sin registro` : `Promedio: <b>${WD.round1(hechos.reduce((s, a) => s + puntajeIce(d.res[a.id]).t, 0) / hechos.length)}</b> de 45`;
     return `<div class="card stack"><div class="row"><div class="label" style="flex:1">Resumen del grupo</div><span class="small muted">${hechos.length} de ${als.length} capturados · ${extra}</span></div>
       ${grupos.map(([n, c, k]) => `<div class="dg-bar"><span class="small">${n}</span><div><i class="${c}" style="width:${(k / hechos.length) * 100}%"></i></div><b class="small">${k}</b></div>`).join('')}</div>`;
   }
   WD.views.idai = {
+    after(v) { v.querySelector('#dg-imp')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importar(f); }); },
     titulo: 'IDAI / ICE',
     render() {
       const als = WD.alumnosActivos(); const d = abierta && diag(abierta);
       if (!d) {
         const ds = lista().slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button></div>
+        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button><button class="btn" data-act="diagImportar">${WD.icon('subir')} Importar niveles</button><input type="file" id="dg-imp" accept=".csv,.xlsx,text/csv" hidden></div>
           <div class="grid g2">
             <div class="card stack"><b>IDAI · Alfabetización inicial</b><p class="small muted" style="margin:0">Dictado de 6 palabras para ubicar el nivel de escritura y las 27 letras que identifica.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="idai">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="idai">${WD.icon('imprimir')} Hoja del alumno</button></div></div>
             <div class="card stack"><b>ICE · Convenciones de la lengua escrita</b><p class="small muted" style="margin:0">Dictado de 5 oraciones y puntuación del texto «El conejo»: 45 reactivos.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="ice">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="ice">${WD.icon('imprimir')} Hoja del alumno</button></div></div>
@@ -242,7 +280,8 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       const fila = (a) => { const r = d.res[a.id]; const ok = capturado(d, r);
         let c; if (!ok) c = `<td colspan="${d.tipo === 'idai' ? 3 : 4}" class="faint small">Sin capturar</td>`;
         else if (d.tipo === 'idai') c = `<td>${r.nivel ? `<span class="pill ${NIV_CLS[r.nivel]}">${r.nivel}</span>` : '<span class="small faint">Sin nivel</span>'}</td><td class="c">${nLetras(r)}/27</td><td class="small muted" style="white-space:normal">${Object.keys(PALABRAS).map((w) => esc(r.pal?.[w] || '')).filter(Boolean).join(' · ')}</td>`;
-        else { const s = puntajeIce(r); c = `<td class="c">${s.o}/39</td><td class="c">${s.p}/6</td><td class="c"><b>${s.t}</b> <span class="tiny muted">${s.pct}%</span></td><td><span class="pill ${s.cls}">${s.nivel}</span></td>`; }
+        else if (!tieneRub(r)) c = `<td colspan="3" class="faint small c">—</td><td>${pill4(r)}</td>`;
+        else { const s = puntajeIce(r); c = `<td class="c">${s.o}/39</td><td class="c">${s.p}/6</td><td class="c"><b>${s.t}</b> <span class="tiny muted">${s.pct}%</span></td><td><span class="pill ${s.cls}">${s.nivel}</span> ${pill4(r)}</td>`; }
         return `<tr><td class="c">${esc(a.num || '')}</td><td><button class="link" data-act="diagAlumno" data-d="${d.id}" data-al="${a.id}">${esc(WD.nombreLista(a))}</button></td>${c}</tr>`; };
       return `<div class="row"><button class="btn ghost" data-act="diagVolver">${WD.icon('izq')} IDAI / ICE</button><span style="flex:1"></span><button class="btn sm" data-act="diagTextos">Para dictar</button><button class="btn sm" data-act="diagHoja" data-t="${d.tipo}">${WD.icon('imprimir')} Hoja del alumno</button><button class="btn sm" data-act="diagExcel" data-id="${d.id}">${WD.icon('descargar')} Excel</button><button class="btn sm" data-act="diagImprimir" data-id="${d.id}">${WD.icon('imprimir')} Concentrado</button></div>
         <div class="card grid g3"><label class="field"><span>Nombre de la aplicación</span><input class="in" data-bind="diagnosticos.${di}.nombre" value="${esc(d.nombre)}"></label><label class="field"><span>Fecha</span><input class="in" type="date" data-bind="diagnosticos.${di}.fecha" value="${esc(d.fecha)}"></label><div class="field"><span>Instrumento</span><div style="padding-top:8px"><b>${d.tipo === 'idai' ? 'IDAI · Alfabetización inicial' : 'ICE · Convenciones de la lengua escrita'}</b></div></div></div>

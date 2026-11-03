@@ -167,7 +167,7 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
   padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .drawer-h { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .drawer-h .grow { flex: 1; min-width: 0; }
-.drawer-b { padding: 18px 20px 40px; overflow-y: auto; display: grid; gap: 16px; align-content: start; }
+.drawer-b { padding: 18px 20px 40px; overflow-y: auto; display: grid; gap: 16px; align-content: start; grid-auto-rows: max-content; }
 .x { border: 0; background: transparent; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; color: var(--muted); }
 .x:hover { background: var(--surface-2); }
 .prose { white-space: pre-wrap; font-size: 14px; line-height: 1.55; }

@@ -132,7 +132,8 @@
       }
     }
     // Sesiones sin tabla de instrumento: criterios a partir de la evaluación de la sesión
-    sesiones.filter((s) => !s.criterios.length).forEach((s) => { s.criterios = s.evidencias.split(/(?<=\.)\s+/).map((x) => x.trim()).filter((x) => x.length > 5).slice(0, 4); });
+    sesiones.forEach((s) => { s.evidencias = s.evidencias.replace(/\s+([.,;])/g, '$1').trim(); });
+    sesiones.filter((s) => !s.criterios.length).forEach((s) => { s.criterios = s.evidencias.split(/(?<=\.)\s+/).map((x) => x.trim()).filter((x) => x.length > 5 && !/^autoevaluaci[oó]n del proyecto/i.test(x)).slice(0, 4); if (!s.criterios.length && s.evidencias) s.criterios = [s.evidencias]; });
     if (!sesiones.length) return null;
     sesiones.sort((a, b) => a.fecha.localeCompare(b.fecha) || WD.CAMPOS.indexOf(a.campo) - WD.CAMPOS.indexOf(b.campo));
     return [{ id: WD.uid(), nombre: nombrePlan, periodo, archivo: file.name, subida: Date.now(), sesiones }];
