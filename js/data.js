@@ -58,6 +58,7 @@
       examenes: [],
       listas: [],
       atencion: null,
+      programa: {},
       entrevistas: [],
       ajustes: { tema: 'auto', mascota: 'ajo', geminiKey: '', geminiModel: '' },
     };

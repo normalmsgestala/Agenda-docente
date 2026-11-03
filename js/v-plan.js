@@ -68,11 +68,28 @@
     WD.state.planeaciones.push(p); crearActividades([p]); WD.save(); WD.refrescar(); WD.toast('Ejemplo cargado en esta semana. Puedes quitarlo cuando quieras.');
   };
 
+  WD.act.subirAgenda = () => { const i = document.getElementById('in-agenda'); i.value = ''; i.click(); };
+  let mesProg = null;
+  WD.act.progMes = (el) => { mesProg = el.dataset.m; WD.refrescar(); };
+  function programaHTML() {
+    const pr = WD.state.programa || {}; const ms = Object.keys(pr).sort(); if (!ms.length) return '';
+    const hoyM = WD.iso(new Date()).slice(0, 7); if (!mesProg || !pr[mesProg]) mesProg = ms.includes(hoyM) ? hoyM : ms[0];
+    const m = pr[mesProg]; const fechas = [...new Set(m.bloques.map((b) => b.fecha))].sort();
+    const semanas = []; fechas.forEach((f) => { const l = WD.iso(WD.lunesDe(WD.parseISO(f))); let s = semanas.find((x) => x.l === l); if (!s) semanas.push((s = { l, dias: [] })); s.dias.push(f); });
+    const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return `<div class="card stack"><div class="row"><h2 style="flex:1">Programa analítico</h2><div class="tabs">${ms.map((k) => `<button class="${k === mesProg ? 'on' : ''}" data-act="progMes" data-m="${k}">${MES[Number(k.slice(5)) - 1]}</button>`).join('')}</div></div>
+      ${semanas.map((s) => `<div class="tbl-wrap"><table class="tbl"><thead><tr>${s.dias.map((f) => `<th>${esc(WD.fechaLarga(f).split(' ').slice(0, 2).join(' '))}</th>`).join('')}</tr></thead><tbody><tr>${s.dias.map((f) => `<td style="vertical-align:top;white-space:normal;min-width:150px">${m.bloques.filter((b) => b.fecha === f).sort((a, b) => a.inicio.localeCompare(b.inicio)).map((b) => `<div class="small" style="margin-bottom:6px"><b>${esc(b.inicio)}${b.fin ? `–${esc(b.fin)}` : ''}</b> ${b.campo ? `<span class="pill">${esc(WD.CAMPO_CORTO[b.campo])}</span><br>${esc(b.proyecto)}${b.sesion ? ` · ${esc(b.sesion)}` : ''}${b.fase ? ` · <span class="muted">${esc(b.fase)}</span>` : ''}` : esc(b.actividad)}</div>`).join('')}</td>`).join('')}</tr></tbody></table></div>`).join('')}
+      ${m.notas ? `<details><summary class="small" style="cursor:pointer">Notas del mes</summary><p class="small" style="white-space:pre-wrap">${esc(m.notas)}</p></details>` : ''}</div>`;
+  }
   WD.views.planeacion = {
     titulo: 'Planeación',
     render() {
       const ps = WD.state.planeaciones.slice().sort((a, b) => (a.sesiones[0]?.fecha || '').localeCompare(b.sesiones[0]?.fecha || ''));
       return `<div class="row"><div style="flex:1;min-width:0"><h1>Planeación</h1><p class="muted">Sube tu planeación tal cual la haces. La IA la lee, acomoda cada sesión en su día y arma qué se evalúa.</p></div></div>
+      <div class="card"><div class="row" style="gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:240px" class="stack"><h2>Subir mi agenda completa</h2><p class="small muted">El PDF de tu agenda del ciclo: leo todas las planeaciones con sus sesiones y el programa analítico de cada mes (la hora de cada clase), y lo vinculo a Inicio, Evaluación y la Exposición para los alumnos.</p>${WD.agendaAvanceHTML ? WD.agendaAvanceHTML() : ''}</div>
+        <div class="stack" style="justify-items:start"><button class="btn pri" data-act="subirAgenda" ${WD.agendaImportando && WD.agendaImportando() ? 'disabled' : ''}>${WD.icon('subir')} Subir agenda (PDF)</button><input type="file" id="in-agenda" accept=".pdf,application/pdf" hidden></div></div></div>
+      ${programaHTML()}
       <div class="card"><div class="row" style="gap:16px;align-items:flex-start">
         <div style="flex:1;min-width:240px" class="stack"><h2>Subir planeación</h2><p class="small muted">PDF o Word. Puede ser una sola (una quincena) o varias juntas (todo el trimestre o el ciclo).</p>
           ${WD.ai.tieneClave() ? '' : '<p class="note small">Para leer planeaciones se usa tu Gemini. Se conecta una sola vez.</p>'}</div>
@@ -87,7 +104,7 @@
         </div>`; }).join('')}</div>`
       : `<div class="empty"><h3>Aún no hay planeaciones</h3><p class="small">Cuando subas una, tus clases aparecen en Inicio con su hora y su lista de evaluación.</p></div>`}`;
     },
-    after(v) { v.querySelector('#in-plan')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) subir(f); }); pintarAvance(); },
+    after(v) { v.querySelector('#in-plan')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) subir(f); }); v.querySelector('#in-agenda')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) WD.subirAgenda(f); }); pintarAvance(); WD.agendaPintar && WD.agendaPintar(); },
   };
 
   /* ---------- horario ---------- */
