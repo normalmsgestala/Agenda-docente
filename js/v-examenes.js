@@ -87,9 +87,9 @@
   };
   function hojaHTML(e, a) {
     const L = layout(e.n, e.op); const E = WD.state.escuela; const mm = (v) => `${v}mm`;
-    const marca = ([x, y]) => `<div style="position:absolute;left:${mm(x - G.mk / 2)};top:${mm(y - G.mk / 2)};width:${mm(G.mk)};height:${mm(G.mk)};background:#000"></div>`;
+    const marca = ([x, y]) => `<svg viewBox="0 0 10 10" style="position:absolute;left:${mm(x - G.mk / 2)};top:${mm(y - G.mk / 2)};width:${mm(G.mk)};height:${mm(G.mk)}"><rect width="10" height="10" fill="#000"/></svg>`;
     const etq = (t, x, y, w) => `<div style="position:absolute;left:${mm(x)};top:${mm(y)};width:${mm(w)};height:8mm;background:#d9d9d9;border-right:1px solid #555;font:11pt Arial;display:flex;align-items:center;padding-left:2mm;box-sizing:border-box">${t}</div>`;
-    let h = `<div class="exhoja" style="position:relative;width:${mm(G.w)};height:${mm(G.h)};page-break-after:always;break-after:page;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#000">`;
+    let h = `<div class="exhoja" style="position:relative;width:${mm(G.w)};height:${mm(G.h)};page-break-after:always;break-after:page;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact">`;
     h += `<div style="position:absolute;left:0;top:6mm;width:146mm;height:24mm;border:2px solid #000;border-radius:4mm;overflow:hidden">
       ${etq('Nombre', 0, 0, 22)}<div style="position:absolute;left:22mm;top:0;width:124mm;height:8mm;border-bottom:1px solid #555;font:bold 11.5pt Arial;display:flex;align-items:center;padding-left:2mm;box-sizing:border-box">${a ? esc(WD.nombreCompleto(a).toUpperCase()) : ''}</div>
       ${etq('Examen', 0, 8, 22)}<div style="position:absolute;left:22mm;top:8mm;width:50mm;height:8mm;border-bottom:1px solid #555;font:10.5pt Arial;display:flex;align-items:center;padding-left:2mm;box-sizing:border-box;overflow:hidden;line-height:1.05">${esc(e.nombre)}</div>
@@ -166,6 +166,85 @@
     }
     return out;
   }
+  // Homografía por mínimos cuadrados con muchos puntos (coordenadas normalizadas)
+  function homografiaLS(src, dst) {
+    const A = Array.from({ length: 8 }, () => new Float64Array(8)), b = new Float64Array(8);
+    src.forEach(([x0, y0], i) => { const x = x0 / 100, y = y0 / 100, u = dst[i][0] / 1000, v = dst[i][1] / 1000;
+      [[x, y, 1, 0, 0, 0, -u * x, -u * y, u], [0, 0, 0, x, y, 1, -v * x, -v * y, v]].forEach((r) => { for (let a = 0; a < 8; a++) { b[a] += r[a] * r[8]; for (let c = 0; c < 8; c++) A[a][c] += r[a] * r[c]; } }); });
+    for (let c = 0; c < 8; c++) { let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      for (let r = 0; r < 8; r++) { if (r === c) continue; const f = A[r][c] / A[c][c]; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; b[r] -= f * b[c]; } }
+    const h = Array.from(b, (v, i) => v / A[i][i]); // Hn; H = Sd·Hn·Ss
+    return [h[0] * 10, h[1] * 10, h[2] * 1000, h[3] * 10, h[4] * 10, h[5] * 1000, h[6] / 100, h[7] / 100, 1];
+  }
+  // ¿Qué tanto parece un círculo de burbuja centrado en (u,v)? (el contorno más oscuro que lo de afuera)
+  const ANG = Array.from({ length: 16 }, (_, k) => [Math.cos((k * Math.PI) / 8), Math.sin((k * Math.PI) / 8)]);
+  function anillo(g, W, Hh, u, v, r) {
+    let aro = 0, fuera = 0;
+    for (const [c, sn] of ANG) { let m = 255; for (const k of [0.8, 0.9, 1, 1.1, 1.2]) { const t = px(g, W, Hh, u + c * r * k, v + sn * r * k); if (t < m) m = t; } aro += m; fuera += px(g, W, Hh, u + c * r * 1.45, v + sn * r * 1.45); }
+    return (fuera - aro) / ANG.length;
+  }
+  // Afín por mínimos cuadrados (sin perspectiva), como matriz de homografía
+  function afinLS(ps) {
+    const A = Array.from({ length: 3 }, () => new Float64Array(3)), bu = new Float64Array(3), bv = new Float64Array(3);
+    ps.forEach(([[x, y], [u, v]]) => { const r = [x, y, 1]; for (let i = 0; i < 3; i++) { bu[i] += r[i] * u; bv[i] += r[i] * v; for (let j = 0; j < 3; j++) A[i][j] += r[i] * r[j]; } });
+    const sol = (bb) => { const M = A.map((f) => Array.from(f)), y = Array.from(bb); for (let c = 0; c < 3; c++) { let p = c; for (let r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r; [M[c], M[p]] = [M[p], M[c]]; [y[c], y[p]] = [y[p], y[c]]; for (let r = 0; r < 3; r++) { if (r === c) continue; const f = M[r][c] / M[c][c]; for (let k = c; k < 3; k++) M[r][k] -= f * M[c][k]; y[r] -= f * y[c]; } } return y.map((v, i) => v / M[i][i]); };
+    const [a, b, c] = sol(bu), [d, e, f] = sol(bv); return [a, b, c, d, e, f, 0, 0, 1];
+  }
+  // Sin marcas negras: parte del código QR y se ajusta con las propias burbujas impresas.
+  // 1) mapa de «parece burbuja» en la zona de respuestas; 2) cada bloque de 10 preguntas se busca moviéndolo
+  //    y estirándolo un poco (la foto puede venir inclinada o el papel curvo); 3) homografía final con todas.
+  function ajustarConBurbujas(g, W, Hh, H0, escala, e, qrPts) {
+    const L = layout(e.n, e.op); const r = 2.45 * escala;
+    const todos = L.pos.flat(); const pp = todos.map(([x, y]) => aplicar(H0, x, y)); const marg = 16 * escala;
+    const mx0 = Math.max(0, Math.floor(Math.min(...pp.map((p) => p[0])) - marg)), mx1 = Math.min(W - 1, Math.ceil(Math.max(...pp.map((p) => p[0])) + marg));
+    const my0 = Math.max(0, Math.floor(Math.min(...pp.map((p) => p[1])) - marg)), my1 = Math.min(Hh - 1, Math.ceil(Math.max(...pp.map((p) => p[1])) + marg));
+    const PS = escala > 4.5 ? 2 : 1.5; // el mapa se calcula cada PS píxeles (más rápido) y se consulta al más cercano
+    const mw = Math.ceil((mx1 - mx0) / PS) + 1, mh = Math.ceil((my1 - my0) / PS) + 1; const mapa = new Float32Array(mw * mh);
+    for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) mapa[y * mw + x] = anillo(g, W, Hh, mx0 + x * PS, my0 + y * PS, r);
+    // tope: un trazo muy negro (número, burbuja rellena) no debe pesar más que un círculo normal
+    const pos = Array.from(mapa).filter((v) => v > 2).sort((a, b) => a - b); const TOPE = pos.length ? pos[Math.floor(pos.length * 0.9)] : 40;
+    const val = (u, v) => { const x = Math.round((u - mx0) / PS), y = Math.round((v - my0) / PS); return x < 0 || y < 0 || x >= mw || y >= mh ? -5 : Math.min(TOPE, mapa[y * mw + x]); };
+    const bloques = []; L.pos.forEach((fila, q) => { const b = Math.floor(q / 10); (bloques[b] = bloques[b] || []).push(...fila); });
+    const qc = [G.qrx + G.qr / 2, G.qry + G.qr / 2];
+    const orden = bloques.map((pts, b) => [b, Math.min(...pts.map(([x, y]) => Math.hypot(x - qc[0], y - qc[1])))]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    const pares = []; let Hc = H0;
+    orden.forEach((b, k) => {
+      const pts = bloques[b]; const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      // a la izquierda están los números y arriba las letras (también «parecen» círculos): solo se revisa a la derecha y abajo
+      const vacios = []; [...new Set(ys)].forEach((y) => vacios.push([x1 + G.sep, y])); [...new Set(xs)].forEach((x) => vacios.push([x, y1 + G.row]));
+      const escalas = k ? [0.96, 0.98, 1, 1.02, 1.04] : [0.86, 0.89, 0.92, 0.95, 0.98, 1, 1.02, 1.05, 1.08, 1.11, 1.14];
+      const R = Math.round(escala * (k ? 4 : 10));
+      let mejor = null, ms = -Infinity;
+      for (const sx of escalas) for (const sy of escalas) {
+        const est = ([x, y]) => aplicar(Hc, cx + sx * (x - cx), cy + sy * (y - cy));
+        const P = pts.map(est), V = vacios.map(est);
+        for (let dy = -R; dy <= R; dy += 2) for (let dx = -R; dx <= R; dx += 2) {
+          let t = 0; for (const q of P) t += val(q[0] + dx, q[1] + dy); t /= P.length; let f = 0; for (const q of V) f += Math.max(0, val(q[0] + dx, q[1] + dy)); t -= f / V.length;
+          if (t > ms) { ms = t; mejor = { sx, sy, dx, dy }; }
+        }
+      }
+      // afinar el desplazamiento de 1 en 1 píxel y cada burbuja por separado
+      const est = ([x, y]) => aplicar(Hc, cx + mejor.sx * (x - cx), cy + mejor.sy * (y - cy)); const P = pts.map(est);
+      let bx = mejor.dx, by = mejor.dy, mb = -Infinity; for (let dy = mejor.dy - 2; dy <= mejor.dy + 2; dy++) for (let dx = mejor.dx - 2; dx <= mejor.dx + 2; dx++) { let t = 0; for (const q of P) t += val(q[0] + dx, q[1] + dy); if (t > mb) { mb = t; bx = dx; by = dy; } }
+      const r2 = Math.max(1, Math.round(escala * 0.7));
+      pts.forEach((pt, i) => { const u = P[i][0] + bx, v = P[i][1] + by; let m2 = [u, v], s2 = -Infinity; for (let dy = -r2; dy <= r2; dy++) for (let dx = -r2; dx <= r2; dx++) { const t = val(u + dx, v + dy); if (t > s2) { s2 = t; m2 = [u + dx, v + dy]; } } pares.push([pt, m2]); });
+      if (WD._dbg) { (WD._dbgPts = WD._dbgPts || []); P.forEach((q) => WD._dbgPts.push([q[0] + bx, q[1] + by, ['blue', 'orange', 'purple'][k]])); }
+      const qrP = qrPts.flatMap((q) => [q, q, q]); Hc = k ? homografiaLS([...qrP, ...pares].map((p) => p[0]), [...qrP, ...pares].map((p) => p[1])) : afinLS([...qrP, ...pares]);
+    });
+    // Ajuste final: se descartan las burbujas que no cuadran y se recalcula
+    let H = Hc;
+    for (let vuelta = 0; vuelta < 2; vuelta++) {
+      const R = Math.max(1, Math.round(escala * 0.6)); const nS = [], nD = [];
+      todos.forEach(([x, y]) => { const [u0, v0] = aplicar(H, x, y); let m = [u0, v0], s2 = -Infinity; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const t = val(u0 + dx, v0 + dy); if (t > s2) { s2 = t; m = [u0 + dx, v0 + dy]; } } if (s2 > 3) { nS.push([x, y]); nD.push(m); } });
+      if (nS.length < 12) break;
+      const Hn = homografiaLS(nS, nD); const res = nS.map(([x, y], i) => { const [u, v] = aplicar(Hn, x, y); return Math.hypot(u - nD[i][0], v - nD[i][1]); });
+      const lim = Math.max(escala * 0.5, res.slice().sort((a, b) => a - b)[Math.floor(res.length * 0.8)] * 1.5);
+      const kS = nS.filter((_, i) => res[i] <= lim), kD = nD.filter((_, i) => res[i] <= lim);
+      H = kS.length >= 12 ? homografiaLS(kS, kD) : Hn;
+    }
+    return H;
+  }
   // Lee una hoja en un canvas: devuelve {examenId, alumnoId, resp[], H, ...} o null
   function leerHoja(ctx, W, Hh) {
     const img = ctx.getImageData(0, 0, W, Hh); const qr = window.jsQR(img.data, W, Hh, { inversionAttempts: 'attemptBoth' });
@@ -176,17 +255,27 @@
     const g = gris(img); const escala = Math.hypot(L.topRightCorner.x - L.topLeftCorner.x, L.topRightCorner.y - L.topLeftCorner.y) / s; // px por mm
     const cand = candidatos(g, W, Hh, G.mk * escala); const usados = new Set();
     const ms = G.marcas.map(([x, y]) => { const [u, v] = aplicar(H0, x, y); let mejor = null, d = Infinity; cand.forEach((c, i) => { const dd = Math.hypot(c.x - u, c.y - v); if (dd < d && !usados.has(i)) { d = dd; mejor = i; } }); if (mejor === null || d > escala * 45) return null; usados.add(mejor); return cand[mejor]; });
-    if (ms.some((m) => !m)) return { examenId, alumnoId: al, parcial: true };
-    const H = homografia(G.marcas, ms.map((m) => [m.x, m.y]));
-    const negro = ms.reduce((t, m) => t + px(g, W, Hh, m.x, m.y), 0) / 4;
+    let H, negro, sinMarcas = false;
+    // Las marcas deben formar un rectángulo coherente; si no están (o no cuadran), se usan las burbujas
+    const okMarcas = ms.every(Boolean) && (() => { const Hm = homografia(G.marcas, ms.map((m) => [m.x, m.y])); const [u, v] = aplicar(Hm, G.qrx + G.qr / 2, G.qry + G.qr / 2); const c = [(L.topLeftCorner.x + L.bottomRightCorner.x) / 2, (L.topLeftCorner.y + L.bottomRightCorner.y) / 2]; return Math.hypot(u - c[0], v - c[1]) < escala * 4; })();
+    if (okMarcas) { H = homografia(G.marcas, ms.map((m) => [m.x, m.y])); negro = ms.reduce((t, m) => t + px(g, W, Hh, m.x, m.y), 0) / 4; }
+    else {
+      sinMarcas = true; H = ajustarConBurbujas(g, W, Hh, H0, escala, e, [[[G.qrx, G.qry], [L.topLeftCorner.x, L.topLeftCorner.y]], [[G.qrx + s, G.qry], [L.topRightCorner.x, L.topRightCorner.y]], [[G.qrx, G.qry + s], [L.bottomLeftCorner.x, L.bottomLeftCorner.y]], [[G.qrx + s, G.qry + s], [L.bottomRightCorner.x, L.bottomRightCorner.y]]]); WD._dbgH = H;
+      // Negro de referencia: el centro de los cuadros grandes del código QR
+      const n = (qr.version || 1) * 4 + 17, mod = G.qr / n; const ctr = [[3.5, 3.5], [n - 3.5, 3.5], [3.5, n - 3.5]];
+      negro = ctr.reduce((t, [a, b]) => { const [u, v] = aplicar(H0, G.qrx + a * mod, G.qry + b * mod); return t + px(g, W, Hh, u, v); }, 0) / 3;
+    }
     const L2 = layout(e.n, e.op); const rIn = G.bub * 0.3; const pts = [[0, 0]]; for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4; pts.push([Math.cos(a) * rIn, Math.sin(a) * rIn], [Math.cos(a) * rIn * 0.5, Math.sin(a) * rIn * 0.5]); }
-    const medias = L2.pos.map((fila) => fila.map(([x, y]) => pts.reduce((t, [dx, dy]) => { const [u, v] = aplicar(H, x + dx, y + dy); return t + px(g, W, Hh, u, v); }, 0) / pts.length));
+    const media = (x, y) => pts.reduce((t, [dx, dy]) => { const [u, v] = aplicar(H, x + dx, y + dy); return t + px(g, W, Hh, u, v); }, 0) / pts.length;
+    const corr = sinMarcas ? [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]] : [[0, 0]];
+    const medias = L2.pos.map((fila) => fila.map(([x, y]) => Math.min(...corr.map(([a, b]) => media(x + a, y + b)))));
     const todas = medias.flat().slice().sort((a, b) => a - b); const blanco = todas[Math.floor(todas.length * 0.85)];
     const thr = blanco - 0.42 * (blanco - negro);
     const resp = medias.map((fila) => { const llenas = fila.map((m, o) => (m < thr ? o : -1)).filter((o) => o >= 0); return llenas.length === 1 ? LET[llenas[0]] : llenas.length > 1 ? '*' : null; });
-    return { examenId, alumnoId: al === '-' ? null : al, resp, H, e };
+    return { examenId, alumnoId: al === '-' ? null : al, resp, H, e, sinMarcas };
   }
 
+  WD._leerHoja = (ctx, W, Hh) => leerHoja(ctx, W, Hh); // para pruebas
   /* ---------- escáner ---------- */
   const cargarLector = () => (window.jsQR ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = `js/lib/jsQR.js?v=${WD.VERSION}`; s.onload = res; s.onerror = () => rej(new Error('No pude cargar el lector.')); document.head.appendChild(s); }));
   let cam = null, modoClave = false;
@@ -197,7 +286,7 @@
     if (!modoClave && !claveLista(e)) { WD.toast('Primero llena la clave de respuestas.'); tabEx = 'clave'; WD.refrescar(); return; }
     const o = document.createElement('div'); o.id = 'expo'; o.className = 'exs';
     o.innerHTML = `<div class="exs-v"><video id="exs-v" playsinline muted></video><canvas id="exs-c"></canvas><div class="exs-guia"><i></i><i></i><i></i><i></i></div></div>
-      <div class="ex-bar"><div id="exs-msg" style="flex:1">${modoClave ? 'Escanea una hoja llena con las respuestas correctas.' : 'Pon la hoja de frente, que se vean las 4 marcas negras y el código.'}</div>
+      <div class="ex-bar"><div id="exs-msg" style="flex:1">${modoClave ? 'Escanea una hoja llena con las respuestas correctas.' : 'Pon la hoja de frente y derecha, que se vea completa con el código.'}</div>
       <span class="pill" id="exs-cuenta">${Object.keys(e.res).length} de ${WD.alumnosActivos().length}</span><label class="btn sm cam">${WD.icon('camara')} Foto<input type="file" accept="image/*" capture="environment" id="exs-f"></label><button class="btn sm" data-act="exsCerrar">Terminar</button></div>`;
     document.body.appendChild(o); document.body.classList.add('expo-on');
     o.querySelector('#exs-f').onchange = (ev) => { const f = ev.target.files[0]; if (f) leerFoto(f); };
