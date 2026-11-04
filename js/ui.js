@@ -96,6 +96,15 @@
     if (WD.google.configurado() && WD.google.estado.modo !== 'google' && !WD.sinConexion) { root().innerHTML = WD.pantallaLogin(); return; }
     if (!WD.state.docente.nombre) { root().innerHTML = WD.bienvenida(); return; }
     if (WD.necesitaAsistente()) { WD.enAsistente = true; WD.repintarAsistente(); return; }
+    // Enlace con niveles IDAI/ICE por número de lista (sin nombres): #diag/i=A.SA…&e=2.-.3…
+    const dg = /^#diag\/(.+)$/.exec(location.hash || '');
+    if (dg && WD.aplicarNivelesDiag) {
+      const q = new URLSearchParams(dg[1]); const I = (q.get('i') || '').split('.'), E = (q.get('e') || '').split('.');
+      history.replaceState(null, '', '#idai');
+      if (!WD.alumnosActivos().length) { WD.render(); WD.toast('Primero carga a tus alumnos en Mi grupo y vuelve a abrir el enlace.', 5000); return; }
+      const regs = Array.from({ length: Math.max(I.length, E.length) }, (_, k) => ({ num: k + 1, nombre: '', idai: [I[k] === '-' ? '' : I[k]], ice: [E[k] === '-' ? '' : E[k]] }));
+      WD.render(); WD.aplicarNivelesDiag(regs, 'tu agenda'); return;
+    }
     const id = WD.ruta(); const v = WD.views[id];
     const s = WD.google.estado;
     const syncTxt = s.modo === 'google' ? ({ guardado: 'Guardado en Drive', guardando: 'Guardando en Drive…', pendiente: 'Se guardará al volver internet', 'sin-conexion': 'Conectando…' }[s.sync] || '') : 'Guardado en este dispositivo';
