@@ -251,11 +251,19 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
     return { nI, nE, sin };
   };
   WD.act.diagImportar = () => { const i = document.getElementById('dg-imp'); i.value = ''; i.click(); };
+  let estadoImp = null; // { t: texto, cls }
+  const pintarImp = () => { const b = document.getElementById('dg-estado'); if (b) b.innerHTML = estadoImp ? `<div class="card row" style="gap:10px">${estadoImp.cls === 'lee' ? '<span class="spinner"></span>' : `<span class="pill ${estadoImp.cls}">${estadoImp.cls === 'ok' ? 'Listo' : 'Atención'}</span>`}<span class="small" style="flex:1">${esc(estadoImp.t)}</span></div>` : ''; };
+  const ponerEstado = (t, cls) => { estadoImp = { t, cls }; pintarImp(); };
   async function importar(file) {
     if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-      WD.toast('Buscando el IDAI y el ICE en tu agenda… (se lee en tu dispositivo, sin IA)', 6000);
-      try { const regs = await WD.leerDiagnosticoAgenda(file); if (!regs) { WD.toast('No encontré las tablas del IDAI y el ICE en ese PDF.', 4500); return; } WD.aplicarNivelesDiag(regs, 'tu agenda'); }
-      catch (e) { console.warn(e); WD.toast('No pude leer el PDF. ' + e.message, 4500); }
+      if (!WD.alumnosActivos().length) { ponerEstado('Primero carga a tus alumnos en Mi grupo; después vuelve a tocar «Traer de mi agenda».', 'warn'); return; }
+      ponerEstado(`Leyendo «${file.name}» en tu dispositivo (sin IA)…`, 'lee');
+      try {
+        const regs = await WD.leerDiagnosticoAgenda(file, (k, n) => ponerEstado(`Buscando las tablas del IDAI y el ICE… página ${k} de ${n}`, 'lee'));
+        if (!regs) { ponerEstado('No encontré las tablas del IDAI y el ICE en ese PDF. Elige el PDF de tu agenda completa.', 'warn'); return; }
+        const r = WD.aplicarNivelesDiag(regs, 'tu agenda');
+        ponerEstado(r && (r.nI || r.nE) ? `Listo: IDAI de ${r.nI} y ICE de ${r.nE} alumnos.${r.sin.length ? ` No encontré en Mi grupo a: ${r.sin.slice(0, 6).join(', ')}.` : ''}` : `Encontré las tablas (${regs.length} alumnos) pero no coincidieron con Mi grupo. Revisa que tus alumnos tengan su número de lista.`, r && (r.nI || r.nE) ? 'ok' : 'warn');
+      } catch (e) { console.warn(e); ponerEstado('No pude leer el PDF: ' + (e.message || e), 'bad'); }
       return;
     }
     let rows; try { rows = await WD.readSheet(file); } catch (e) { WD.toast('No pude leer el archivo.'); return; }
@@ -276,13 +284,13 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       ${grupos.map(([n, c, k]) => `<div class="dg-bar"><span class="small">${n}</span><div><i class="${c}" style="width:${(k / hechos.length) * 100}%"></i></div><b class="small">${k}</b></div>`).join('')}</div>`;
   }
   WD.views.idai = {
-    after(v) { v.querySelector('#dg-imp')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importar(f); }); },
+    after(v) { v.querySelector('#dg-imp')?.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importar(f); }); pintarImp(); },
     titulo: 'IDAI / ICE',
     render() {
       const als = WD.alumnosActivos(); const d = abierta && diag(abierta);
       if (!d) {
         const ds = lista().slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button><button class="btn" data-act="diagImportar">${WD.icon('subir')} Traer de mi agenda</button><input type="file" id="dg-imp" accept=".pdf,.csv,.xlsx,application/pdf,text/csv" hidden></div>
+        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button><button class="btn pri" data-act="diagImportar">${WD.icon('subir')} Traer de mi agenda</button><input type="file" id="dg-imp" accept=".pdf,.csv,.xlsx,application/pdf,text/csv" hidden></div><div id="dg-estado"></div>
           <div class="grid g2">
             <div class="card stack"><b>IDAI · Alfabetización inicial</b><p class="small muted" style="margin:0">Dictado de 6 palabras para ubicar el nivel de escritura y las 27 letras que identifica.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="idai">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="idai">${WD.icon('imprimir')} Hoja del alumno</button></div></div>
             <div class="card stack"><b>ICE · Convenciones de la lengua escrita</b><p class="small muted" style="margin:0">Dictado de 5 oraciones y puntuación del texto «El conejo»: 45 reactivos.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="ice">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="ice">${WD.icon('imprimir')} Hoja del alumno</button></div></div>
@@ -293,11 +301,11 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       const cab = d.tipo === 'idai' ? '<th>Nivel de escritura</th><th class="c">Letras</th><th>Palabras</th>' : '<th class="c">Dictado</th><th class="c">Puntuación</th><th class="c">Total</th><th>Diagnóstico</th>';
       const fila = (a) => { const r = d.res[a.id]; const ok = capturado(d, r);
         let c; if (!ok) c = `<td colspan="${d.tipo === 'idai' ? 3 : 4}" class="faint small">Sin capturar</td>`;
-        else if (d.tipo === 'idai') c = `<td>${r.nivel ? `<span class="pill ${NIV_CLS[r.nivel]}">${r.nivel}</span>` : '<span class="small faint">Sin nivel</span>'}</td><td class="c">${nLetras(r)}/27</td><td class="small muted" style="white-space:normal">${Object.keys(PALABRAS).map((w) => esc(r.pal?.[w] || '')).filter(Boolean).join(' · ')}</td>`;
+        else if (d.tipo === 'idai') c = `<td>${r.nivel ? `<span class="pill ${NIV_CLS[r.nivel]}">${r.nivel}</span>` : '<span class="small faint">Sin nivel</span>'}</td><td class="c">${nLetras(r) ? `${nLetras(r)}/27` : '<span class="faint">—</span>'}</td><td class="small muted" style="white-space:normal">${Object.keys(PALABRAS).map((w) => esc(r.pal?.[w] || '')).filter(Boolean).join(' · ')}</td>`;
         else if (!tieneRub(r)) c = `<td colspan="3" class="faint small c">—</td><td>${pill4(r)}</td>`;
         else { const s = puntajeIce(r); c = `<td class="c">${s.o}/39</td><td class="c">${s.p}/6</td><td class="c"><b>${s.t}</b> <span class="tiny muted">${s.pct}%</span></td><td><span class="pill ${s.cls}">${s.nivel}</span> ${pill4(r)}</td>`; }
         return `<tr><td class="c">${esc(a.num || '')}</td><td><button class="link" data-act="diagAlumno" data-d="${d.id}" data-al="${a.id}">${esc(WD.nombreLista(a))}</button></td>${c}</tr>`; };
-      return `<div class="row"><button class="btn ghost" data-act="diagVolver">${WD.icon('izq')} IDAI / ICE</button><span style="flex:1"></span><button class="btn sm" data-act="diagTextos">Para dictar</button><button class="btn sm" data-act="diagHoja" data-t="${d.tipo}">${WD.icon('imprimir')} Hoja del alumno</button><button class="btn sm" data-act="diagExcel" data-id="${d.id}">${WD.icon('descargar')} Excel</button><button class="btn sm" data-act="diagImprimir" data-id="${d.id}">${WD.icon('imprimir')} Concentrado</button></div>
+      return `<div class="row"><button class="btn ghost" data-act="diagVolver">${WD.icon('izq')} IDAI / ICE</button><span style="flex:1"></span><button class="btn sm" data-act="diagTextos">Para dictar</button><button class="btn sm" data-act="diagHoja" data-t="${d.tipo}">${WD.icon('imprimir')} Hoja del alumno</button><button class="btn sm" data-act="diagExcel" data-id="${d.id}">${WD.icon('descargar')} Excel</button><button class="btn sm" data-act="diagImprimir" data-id="${d.id}">${WD.icon('imprimir')} Concentrado</button><button class="btn sm pri" data-act="diagImportar">${WD.icon('subir')} Traer de mi agenda</button><input type="file" id="dg-imp" accept=".pdf,.csv,.xlsx,application/pdf,text/csv" hidden></div><div id="dg-estado"></div>
         <div class="card grid g3"><label class="field"><span>Nombre de la aplicación</span><input class="in" data-bind="diagnosticos.${di}.nombre" value="${esc(d.nombre)}"></label><label class="field"><span>Fecha</span><input class="in" type="date" data-bind="diagnosticos.${di}.fecha" value="${esc(d.fecha)}"></label><div class="field"><span>Instrumento</span><div style="padding-top:8px"><b>${d.tipo === 'idai' ? 'IDAI · Alfabetización inicial' : 'ICE · Convenciones de la lengua escrita'}</b></div></div></div>
         ${resumen(d, als)}
         ${als.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Nº</th><th>Alumno</th>${cab}</tr></thead><tbody>${als.map(fila).join('')}</tbody></table></div><p class="tiny muted">Toca el nombre del alumno para capturar. Con «Siguiente» pasas al que sigue sin cerrar.</p>` : '<p class="small muted">Carga a tus alumnos en Mi grupo para capturar resultados.</p>'}

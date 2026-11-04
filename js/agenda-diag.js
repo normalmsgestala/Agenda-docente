@@ -3,12 +3,19 @@
 (function (WD) {
   'use strict';
   let pdfjs = null;
+  const base = () => new URL('js/lib/pdfjs/', location.href).href;
   async function cargar() {
     if (pdfjs) return pdfjs;
-    const base = new URL('js/lib/pdfjs/', location.href).href;
-    pdfjs = await import(`${base}pdf.min.js?v=${WD.VERSION}`);
-    pdfjs.GlobalWorkerOptions.workerSrc = `${base}pdf.worker.min.js?v=${WD.VERSION}`;
+    try { pdfjs = await import(`${base()}pdf.min.js?v=${WD.VERSION}`); } catch (e) { throw new Error('Este navegador no pudo cargar el lector de PDF (' + (e.message || e) + ').'); }
+    pdfjs.GlobalWorkerOptions.workerSrc = `${base()}pdf.worker.min.js?v=${WD.VERSION}`;
     return pdfjs;
+  }
+  // Si el navegador no deja usar el «worker», se lee en la página misma (más lento pero funciona)
+  async function sinWorker() { if (!globalThis.pdfjsWorker) globalThis.pdfjsWorker = await import(`${base()}pdf.worker.min.js?v=${WD.VERSION}`); }
+  async function abrir(lib, datos) {
+    const op = { disableFontFace: true, isEvalSupported: false, verbosity: 0 };
+    try { const t = lib.getDocument({ data: datos.slice(0), ...op }); const d = await Promise.race([t.promise, new Promise((_, r) => setTimeout(() => r(new Error('tiempo')), 25000))]); return [t, d]; }
+    catch (e) { console.warn('pdf.js con worker falló, sin worker', e); await sinWorker(); const t = lib.getDocument({ data: datos.slice(0), ...op }); return [t, await t.promise]; }
   }
   // Renglones de una página: agrupa el texto por altura y lo ordena de izquierda a derecha
   async function renglones(page) {
@@ -31,14 +38,14 @@
   }
   WD.leerDiagnosticoAgenda = async (file, avance = () => {}) => {
     const lib = await cargar();
-    const tarea = lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableFontFace: true, isEvalSupported: false, verbosity: 0 }); const doc = await tarea.promise;
+    const [tarea, doc] = await abrir(lib, new Uint8Array(await file.arrayBuffer()));
     const n = doc.numPages; const res = {};
     // Orden de búsqueda: las tablas suelen estar en la sección de evaluación (segunda mitad del libro)
     const orden = []; for (let p = Math.floor(n * 0.55); p <= n; p++) orden.push(p); for (let p = 1; p < Math.floor(n * 0.55); p++) orden.push(p);
     for (let k = 0; k < orden.length; k++) {
       if (res.idai && res.ice) break;
       const page = await doc.getPage(orden[k]); const ls = await renglones(page); page.cleanup(); const plano = WD.norm(ls.slice(0, 14).join(' '));
-      if (k % 25 === 0) avance(k / orden.length);
+      if (k % 10 === 0) avance(k, orden.length);
       const tipo = !res.idai && /idai/.test(plano) && /alfabetizacion inicial/.test(plano) ? 'idai' : !res.ice && /\bice\b/.test(plano) && /convencionalidades/.test(plano) ? 'ice' : null;
       if (!tipo) continue;
       const filas = filasTabla(ls, tipo); if (filas.length >= 5) res[tipo] = filas;
