@@ -231,24 +231,38 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
     if (porNum.length === 1 && (!tk.length || puntos(porNum[0]) >= 1)) return porNum[0];
     const mejor = als.map((a) => [a, puntos(a)]).sort((x, y) => y[1] - x[1])[0]; return mejor && mejor[1] >= 2 ? mejor[0] : porNum[0] || null;
   }
-  const aplicacion = (tipo) => lista().find((d) => d.tipo === tipo && /diagn/i.test(d.nombre)) || (() => { const d = { id: WD.uid(), tipo, nombre: `${tipo === 'idai' ? 'IDAI' : 'ICE'} · Diagnóstico`, fecha: WD.iso(new Date()), res: {} }; lista().push(d); return d; })();
+  const ETAPAS = [['diagn', 'Diagnóstico'], ['interm', 'Intermedio'], ['final', 'Final']];
+  const aplicacion = (tipo, k = 0) => { const [re, nom] = ETAPAS[k]; return lista().find((d) => d.tipo === tipo && WD.norm(d.nombre).includes(re)) || (() => { const d = { id: WD.uid(), tipo, nombre: `${tipo === 'idai' ? 'IDAI' : 'ICE'} · ${nom}`, fecha: WD.iso(new Date()), res: {} }; lista().push(d); return d; })(); };
+  // registros: [{ num, nombre, idai: [inicial, intermedia, final], ice: [inicial, intermedia, final] }]
+  WD.aplicarNivelesDiag = (registros, origen) => {
+    const als = WD.alumnosActivos(); if (!als.length) { WD.toast('Primero carga a tus alumnos en Mi grupo.'); return null; }
+    const cuenta = { idai: [0, 0, 0], ice: [0, 0, 0] }; const sin = []; const usadas = [];
+    registros.forEach((x) => {
+      const a = buscarAlumno(als, x.num, x.nombre || ''); if (!a) { if (String(x.nombre || '').trim()) sin.push(x.nombre); return; }
+      [0, 1, 2].forEach((k) => {
+        const ni = IDAI_COD[WD.norm((x.idai || [])[k] || '').trim()]; if (ni) { const d = aplicacion('idai', k); resDe(d, a.id).nivel = ni; cuenta.idai[k]++; if (!usadas.includes(d)) usadas.push(d); }
+        const ne = Number(String((x.ice || [])[k] || '').trim()); if (ne >= 1 && ne <= 4) { const d = aplicacion('ice', k); resDe(d, a.id).nivel4 = ne; cuenta.ice[k]++; if (!usadas.includes(d)) usadas.push(d); }
+      });
+    });
+    WD.state.diagnosticos = lista().filter((d) => usadas.includes(d) || Object.keys(d.res || {}).length);
+    WD.save(); WD.refrescar();
+    const nI = cuenta.idai.reduce((s, v) => s + v, 0), nE = cuenta.ice.reduce((s, v) => s + v, 0);
+    if (nI || nE) WD.petDecir(`${origen ? `De ${origen} ` : ''}puse el IDAI a ${cuenta.idai[0]} alumnos y el ICE a ${cuenta.ice[0]} (diagnóstico)${cuenta.idai[1] + cuenta.ice[1] ? `, más ${cuenta.idai[1] + cuenta.ice[1]} de la aplicación intermedia` : ''}${cuenta.idai[2] + cuenta.ice[2] ? ` y ${cuenta.idai[2] + cuenta.ice[2]} de la final` : ''}.${sin.length ? ` No encontré a: ${sin.slice(0, 5).join(', ')}.` : ''}`, 'idai');
+    return { nI, nE, sin };
+  };
   WD.act.diagImportar = () => { const i = document.getElementById('dg-imp'); i.value = ''; i.click(); };
   async function importar(file) {
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      WD.toast('Buscando el IDAI y el ICE en tu agenda… (se lee en tu dispositivo, sin IA)', 6000);
+      try { const regs = await WD.leerDiagnosticoAgenda(file); if (!regs) { WD.toast('No encontré las tablas del IDAI y el ICE en ese PDF.', 4500); return; } WD.aplicarNivelesDiag(regs, 'tu agenda'); }
+      catch (e) { console.warn(e); WD.toast('No pude leer el PDF. ' + e.message, 4500); }
+      return;
+    }
     let rows; try { rows = await WD.readSheet(file); } catch (e) { WD.toast('No pude leer el archivo.'); return; }
-    const als = WD.alumnosActivos(); if (!als.length) { WD.toast('Primero carga a tus alumnos en Mi grupo.'); return; }
-    const cab = rows.findIndex((r) => r.some((c) => /idai/i.test(c)) || r.some((c) => /ice/i.test(c)));
+    const cab = Math.max(0, rows.findIndex((r) => r.some((c) => /idai|ice/i.test(c))));
     const h = (rows[cab] || []).map((c) => WD.norm(c)); const col = (re, def) => { const k = h.findIndex((c) => re.test(c)); return k >= 0 ? k : def; };
     const cN = col(/^n/, 0), cA = col(/alumn|nombre/, 1), cI = col(/idai/, 2), cE = col(/ice/, 3);
-    const di = aplicacion('idai'), de = aplicacion('ice'); let nI = 0, nE = 0; const sin = [];
-    rows.slice(cab + 1).forEach((r) => {
-      if (!r[cA] && !r[cN]) return; const a = buscarAlumno(als, r[cN], r[cA] || ''); if (!a) { if (String(r[cA] || '').trim()) sin.push(r[cA]); return; }
-      const ni = IDAI_COD[WD.norm(r[cI] || '').trim()]; if (ni) { resDe(di, a.id).nivel = ni; nI++; }
-      const ne = Number(String(r[cE] || '').trim()); if (ne >= 1 && ne <= 4) { resDe(de, a.id).nivel4 = ne; nE++; }
-    });
-    if (!nI && di.res && !Object.keys(di.res).length) WD.state.diagnosticos = lista().filter((x) => x !== di);
-    if (!nE && de.res && !Object.keys(de.res).length) WD.state.diagnosticos = lista().filter((x) => x !== de);
-    WD.save(); WD.refrescar();
-    WD.petDecir(`Listo: puse el nivel IDAI a ${nI} alumnos y el nivel ICE a ${nE}.${sin.length ? ` No encontré a: ${sin.slice(0, 5).join(', ')}.` : ''} Quedan en «${di.nombre}» y «${de.nombre}».`, 'idai');
+    WD.aplicarNivelesDiag(rows.slice(cab + 1).filter((r) => r[cA] || r[cN]).map((r) => ({ num: r[cN], nombre: r[cA], idai: [r[cI]], ice: [r[cE]] })), 'tu archivo');
   }
 
   /* ---------- vista ---------- */
@@ -268,7 +282,7 @@ Devuelve JSON {"rubrica":{"o1_mayuscula":true,...todos los ids...},"observacion"
       const als = WD.alumnosActivos(); const d = abierta && diag(abierta);
       if (!d) {
         const ds = lista().slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button><button class="btn" data-act="diagImportar">${WD.icon('subir')} Importar niveles</button><input type="file" id="dg-imp" accept=".csv,.xlsx,text/csv" hidden></div>
+        return `<div class="row"><div style="flex:1;min-width:0"><h1>IDAI / ICE</h1><p class="muted">Diagnóstico de escritura (IDAI) y de convenciones de la lengua escrita (ICE) para tu grupo.</p></div><button class="btn" data-act="diagTextos">Para dictar</button><button class="btn" data-act="diagGuia">Guía de niveles</button><button class="btn" data-act="diagImportar">${WD.icon('subir')} Traer de mi agenda</button><input type="file" id="dg-imp" accept=".pdf,.csv,.xlsx,application/pdf,text/csv" hidden></div>
           <div class="grid g2">
             <div class="card stack"><b>IDAI · Alfabetización inicial</b><p class="small muted" style="margin:0">Dictado de 6 palabras para ubicar el nivel de escritura y las 27 letras que identifica.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="idai">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="idai">${WD.icon('imprimir')} Hoja del alumno</button></div></div>
             <div class="card stack"><b>ICE · Convenciones de la lengua escrita</b><p class="small muted" style="margin:0">Dictado de 5 oraciones y puntuación del texto «El conejo»: 45 reactivos.</p><div class="row"><button class="btn pri" data-act="diagNuevo" data-t="ice">${WD.icon('mas')} Nueva aplicación</button><button class="btn sm ghost" data-act="diagHoja" data-t="ice">${WD.icon('imprimir')} Hoja del alumno</button></div></div>

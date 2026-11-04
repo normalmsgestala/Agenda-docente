@@ -92,7 +92,7 @@
       const ps = WD.state.planeaciones.slice().sort((a, b) => (a.sesiones[0]?.fecha || '').localeCompare(b.sesiones[0]?.fecha || ''));
       return `<div class="row"><div style="flex:1;min-width:0"><h1>Planeación</h1><p class="muted">Sube tu planeación tal cual la haces. La IA la lee, acomoda cada sesión en su día y arma qué se evalúa.</p></div></div>
       <div class="card"><div class="row" style="gap:16px;align-items:flex-start">
-        <div style="flex:1;min-width:240px" class="stack"><h2>Subir mi agenda completa</h2><p class="small muted">El PDF de tu agenda del ciclo: leo todas las planeaciones con sus sesiones y el programa analítico de cada mes (la hora de cada clase), y lo vinculo a Inicio, Evaluación y la Exposición para los alumnos.</p>${WD.agendaAvanceHTML ? WD.agendaAvanceHTML() : ''}</div>
+        <div style="flex:1;min-width:240px" class="stack"><h2>Subir mi agenda completa</h2><p class="small muted">El PDF de tu agenda del ciclo: leo todas las planeaciones con sus sesiones y el programa analítico de cada mes (la hora de cada clase), y lo vinculo a Inicio, Evaluación y la Exposición para los alumnos. También tomo los niveles del IDAI y el ICE de tus alumnos.</p>${WD.agendaAvanceHTML ? WD.agendaAvanceHTML() : ''}</div>
         <div class="stack" style="justify-items:start"><button class="btn pri" data-act="subirAgenda" ${WD.agendaImportando && WD.agendaImportando() ? 'disabled' : ''}>${WD.icon('subir')} Subir agenda (PDF)</button><input type="file" id="in-agenda" accept=".pdf,application/pdf" hidden></div></div></div>
       ${programaHTML()}
       <div class="card"><div class="row" style="gap:16px;align-items:flex-start">

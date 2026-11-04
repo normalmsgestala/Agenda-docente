@@ -41,6 +41,8 @@ Incluye cada clase de campo formativo con su hora y las actividades fijas con ho
   async function enParalelo(tareas, n) { const cola = tareas.slice(); await Promise.all(Array.from({ length: n }, async () => { while (cola.length) await cola.shift()(); })); }
 
   WD.subirAgenda = async (file) => {
+    // IDAI e ICE de la agenda: se leen en el dispositivo, sin IA (los nombres no salen)
+    if (WD.leerDiagnosticoAgenda && WD.alumnosActivos().length) WD.leerDiagnosticoAgenda(file).then((r) => { if (r) WD.aplicarNivelesDiag(r, 'tu agenda'); }).catch((e) => console.warn('IDAI/ICE', e));
     if (!WD.requiereIA()) return;
     if (corriendo) { WD.toast('Ya estoy leyendo tu agenda.'); return; }
     corriendo = { pasos: [], t0: Date.now() }; const reloj = setInterval(pintar, 1000); WD.refrescar();
