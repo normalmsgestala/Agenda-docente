@@ -34,16 +34,13 @@
     } else {
       ctl = `<div class="stack" style="gap:4px">${crit.map((c, i) => `<div class="row" style="gap:6px;flex-wrap:nowrap"><span class="tiny faint num" style="width:14px">${i + 1}</span><div class="lvl">${[1, 2, 3, 4].map((l) => `<button class="${r && r.niveles && r.niveles[i] === l ? 'on' : ''}" title="${NIVEL[l]}" data-act="calNivel" data-a="${act.id}" data-al="${a.id}" data-i="${i}" data-l="${l}">${l}</button>`).join('')}</div></div>`).join('')}</div>`;
     }
-    const foto = fotos[a.id];
     return `<tr><td class="r faint">${esc(a.num || '')}</td><td style="white-space:normal;min-width:150px">${esc(WD.nombreLista(a))}${r && r.ia ? `<div><button class="pill warn" style="cursor:pointer" data-act="confirmarIA" data-a="${act.id}" data-al="${a.id}" title="${esc(r.comentario || '')}">Propuesta IA · confirmar</button></div>` : ''}</td>
       <td>${ctl}</td>
-      <td class="c"><div class="row" style="gap:4px;flex-wrap:nowrap">${foto ? `<img class="photo" src="${foto}" alt="Foto del trabajo" data-act="verFoto" data-a="${act.id}" data-al="${a.id}">` : ''}<label class="btn sm cam" title="Tomar foto del trabajo">${WD.icon('camara')}<input type="file" accept="image/*" capture="environment" data-foto="${a.id}"></label>${foto && act.instrumento !== 'nota' && crit.length ? `<button class="btn sm" data-act="iaFoto" data-a="${act.id}" data-al="${a.id}" title="Que la IA proponga">${WD.icon('chispa')}</button>` : ''}</div></td>
       <td class="r nota">${n === null ? '<span class="faint">—</span>' : WD.round1(Math.max(n, 0))}</td></tr>`;
   }
   WD.abrirActividad = async (id, nueva) => {
     const i = WD.state.actividades.findIndex((x) => x.id === id); if (i < 0) return; const act = WD.state.actividades[i];
     const als = WD.alumnosActivos(); const fotos = {};
-    for (const a of als) { const f = await WD.kv.get(`foto:${act.id}:${a.id}`); if (f) fotos[a.id] = f; }
     const auto = valorAuto(act);
     WD.abrirDrawer(nueva ? 'Nueva actividad' : (act.nombre || 'Actividad'), `
       <div class="grid g2">
@@ -61,7 +58,7 @@
       ${contextoHTML(act)}
       ${als.length ? `<div class="row" style="gap:6px"><span class="small muted" style="flex:1">${als.filter((a) => WD.califActividad(act, a.id) !== null).length} de ${als.length} calificados</span><button class="btn sm" data-act="calTodos" data-a="${act.id}">${act.instrumento === 'nota' || !(act.criterios || []).length ? 'A los que faltan: 10' : act.instrumento === 'cotejo' ? 'A los que faltan: cumple todo' : 'A los que faltan: Logrado (3)'}</button><button class="btn sm" data-act="calNE" data-a="${act.id}">A los que faltan: NE</button></div>
         <p class="tiny muted" style="margin:-6px 0 0">Marca primero a todos y luego corrige solo a los que no. Los que ya calificaste no cambian.</p>` : ''}
-      ${als.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th>${INST[act.instrumento] || ''}</th><th class="c">Foto</th><th class="r">Nota</th></tr></thead><tbody>${als.map((a) => filaAlumno(act, a, fotos)).join('')}</tbody></table></div>` : '<div class="empty small">Carga a tus alumnos en Mi grupo para evaluar.</div>'}
+      ${als.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th>${INST[act.instrumento] || ''}</th><th class="r">Nota</th></tr></thead><tbody>${als.map((a) => filaAlumno(act, a, fotos)).join('')}</tbody></table></div>` : '<div class="empty small">Carga a tus alumnos en Mi grupo para evaluar.</div>'}
       <div class="row"><span style="flex:1"></span><button class="btn danger" data-act="borrarActividad" data-id="${act.id}">Eliminar actividad</button></div>`,
       (b) => {
         b.querySelector('#act-inst')?.addEventListener('change', (e) => { act.instrumento = e.target.value; if (e.target.value !== 'nota' && !(act.criterios || []).length) act.criterios = ['Cumple con lo solicitado']; WD.save(); WD.abrirActividad(act.id); });

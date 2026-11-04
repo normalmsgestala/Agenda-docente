@@ -302,7 +302,7 @@
     { k: 'atencion diferenciada perfil del grupo rezago nee socioemocional estrategias evidencias estilos de aprendizaje', t: 'Atención diferenciada', to: 'atencion' },
     { k: 'padres familias pendientes faltan actividades entregar pdf debe tareas', t: 'Actividades para padres', to: 'padres' },
     { k: 'listas notas checklist cotejo trajo trabajo tarea material quien falta', t: 'Listas y notas', to: 'listas' },
-    { k: 'examenes examen hoja de respuestas escanear calificar zipgrade clave diagnostico', t: 'Exámenes', to: 'examenes' },
+    { k: 'examenes examen calificacion calificar anotar diagnostico trimestre', t: 'Exámenes', to: 'examenes' },
     { k: 'familias padres tutores mensajes correo whatsapp avisos citatorio recordatorio comunicacion', t: 'Comunicación con familias', to: 'familias' },
     { k: 'comisiones cumpleanos cumpleaños jefe de grupo responsables rotar felicitar', t: 'Comisiones y cumpleaños', to: 'comisiones' },
     { k: 'control administrativo entregas mensuales direccion supervision visitas vo bo programa analitico udei', t: 'Control administrativo', to: 'control' },

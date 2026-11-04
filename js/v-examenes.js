@@ -1,5 +1,5 @@
-/* Web Docente · Exámenes con hoja de respuestas: se imprime la hoja (sin matrícula; un código QR identifica al alumno),
-   se escanea con la cámara, se califica en base 100 y pasa a Evaluación › Examen. */
+/* Web Docente · Exámenes: el docente anota la calificación de cada alumno (del 5 al 10 o sobre 100)
+   y pasa a Evaluación › Examen. (El lector de hojas de respuestas quedó en el código pero ya no se muestra.) */
 (function (WD) {
   'use strict';
   const { esc } = WD;
@@ -37,7 +37,8 @@
     const tri = e.tipo === 'diagnostico' ? 1 : Number(e.tipo.slice(1));
     if (!a) { a = { id: WD.uid(), examenId: e.id, rubro: 'examen', instrumento: 'nota', criterios: [], calif: {}, valor: e.tipo === 'diagnostico' ? 0 : null }; WD.state.actividades.push(a); }
     Object.assign(a, { trimestre: tri, campo: e.campo, nombre: `${e.tipo === 'diagnostico' ? 'Diagnóstico · ' : ''}${e.nombre}`, fecha: e.fecha });
-    a.calif = {}; if (claveLista(e)) Object.entries(e.res).forEach(([al, r]) => { a.calif[al] = Math.round(puntaje(e, r.resp)) / 10; });
+    a.calif = {}; if (e.n && claveLista(e)) Object.entries(e.res).forEach(([al, r]) => { a.calif[al] = Math.round(puntaje(e, r.resp)) / 10; });
+    Object.entries(e.notas || {}).forEach(([al, v]) => { if (typeof v === 'number') a.calif[al] = v; });
   }
   const guardar = (e) => { aEvaluacion(e); WD.save(); };
 
@@ -45,22 +46,35 @@
   WD.act.exNuevo = () => {
     const m = WD.modal(`<div class="row"><h2 style="flex:1">Nuevo examen</h2><button class="x" data-act="cerrarModal" aria-label="Cerrar">×</button></div>
       <form class="stack" id="exn">
-        <label class="field"><span>¿Cuántas preguntas tiene?</span><input class="in" name="n" type="number" min="1" max="${MAXQ}" required autofocus placeholder="Ej. 25" style="font-size:22px"></label>
-        <label class="field"><span>Nombre</span><input class="in" name="nombre" required placeholder="Ej. Examen diagnóstico de Saberes"></label>
+        <label class="field"><span>Nombre</span><input class="in" name="nombre" required autofocus placeholder="Ej. Examen del trimestre 1 de Lenguajes"></label>
         <div class="grid g2"><label class="field"><span>Tipo</span><select class="in" name="tipo">${Object.entries(TIPOS).map(([k, t]) => `<option value="${k}" ${k === `t${WD.trimestreDe(WD.iso(new Date()))}` ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
           <label class="field"><span>Campo formativo</span><select class="in" name="campo">${WD.CAMPOS.map((c) => `<option>${c}</option>`).join('')}</select></label>
           <label class="field"><span>Fecha</span><input class="in" type="date" name="fecha" value="${WD.iso(new Date())}"></label>
-          <label class="field"><span>Opciones por pregunta</span><select class="in" name="op"><option value="4">A, B, C, D</option><option value="5" selected>A, B, C, D, E</option></select></label></div>
-        <p class="tiny muted" style="margin:0">Se califica en base 100: cada pregunta vale 100 entre el número de preguntas.</p>
-        <button class="btn pri" style="justify-self:end">Crear y llenar la clave</button></form>`);
+          <label class="field"><span>Voy a anotar la calificación</span><select class="in" name="escala"><option value="10">Del 5 al 10</option><option value="100">Sobre 100 (aciertos en %)</option></select></label></div>
+        <p class="tiny muted" style="margin:0">Después solo escribes la calificación de cada alumno y pasa sola a Evaluación › Examen.</p>
+        <button class="btn pri" style="justify-self:end">Crear</button></form>`);
     m.querySelector('#exn').onsubmit = (ev) => {
-      ev.preventDefault(); const f = ev.target; const n = Math.max(1, Math.min(MAXQ, Number(f.n.value) || 0));
-      const e = { id: WD.uid(), nombre: f.nombre.value.trim(), tipo: f.tipo.value, campo: f.campo.value, fecha: f.fecha.value, n, op: Number(f.op.value), clave: Array(n).fill(null), res: {} };
-      lista().push(e); WD.save(); WD.cerrarModal(); abierto = e.id; tabEx = 'clave'; WD.refrescar(); window.scrollTo(0, 0);
+      ev.preventDefault(); const f = ev.target;
+      const e = { id: WD.uid(), nombre: f.nombre.value.trim(), tipo: f.tipo.value, campo: f.campo.value, fecha: f.fecha.value, n: 0, op: 4, clave: [], res: {}, notas: {}, escala: Number(f.escala.value), manual: true };
+      lista().push(e); guardar(e); WD.cerrarModal(); abierto = e.id; WD.refrescar(); window.scrollTo(0, 0);
+      setTimeout(() => document.querySelector('.ex-n')?.focus(), 100);
     };
   };
+  // Nota (5 a 10) de un alumno: la escrita a mano, o la de una hoja escaneada antes
+  const notaDe = (e, al) => { const v = (e.notas || {})[al]; if (typeof v === 'number') return v; const r = e.res[al]; return r && e.n && claveLista(e) ? Math.round(puntaje(e, r.resp)) / 10 : null; };
+  const mostrar = (e, nota) => (nota === null ? '' : e.escala === 100 ? WD.round1(nota * 10) : WD.round1(nota));
+  WD.act.exEscala = () => { const e = ex(abierto); e.escala = e.escala === 100 ? 10 : 100; WD.save(); WD.refrescar(); };
+  WD.act.exEditar = () => {
+    const e = ex(abierto); const m = WD.modal(`<div class="row"><h2 style="flex:1">Datos del examen</h2><button class="x" data-act="cerrarModal" aria-label="Cerrar">×</button></div>
+      <form class="stack" id="exe"><label class="field"><span>Nombre</span><input class="in" name="nombre" value="${esc(e.nombre)}" required></label>
+      <div class="grid g2"><label class="field"><span>Tipo</span><select class="in" name="tipo">${Object.entries(TIPOS).map(([k, t]) => `<option value="${k}" ${k === e.tipo ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="field"><span>Campo formativo</span><select class="in" name="campo">${WD.CAMPOS.map((c) => `<option ${c === e.campo ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="field"><span>Fecha</span><input class="in" type="date" name="fecha" value="${esc(e.fecha)}"></label></div>
+      <button class="btn pri" style="justify-self:end">Guardar</button></form>`);
+    m.querySelector('#exe').onsubmit = (ev) => { ev.preventDefault(); const f = ev.target; Object.assign(e, { nombre: f.nombre.value.trim(), tipo: f.tipo.value, campo: f.campo.value, fecha: f.fecha.value }); guardar(e); WD.cerrarModal(); WD.refrescar(); };
+  };
   let abierto = null, tabEx = 'resultados';
-  WD.act.exAbrir = (el) => { abierto = el.dataset.id; tabEx = claveLista(ex(abierto)) ? 'resultados' : 'clave'; WD.refrescar(); window.scrollTo(0, 0); };
+  WD.act.exAbrir = (el) => { abierto = el.dataset.id; WD.refrescar(); window.scrollTo(0, 0); };
   WD.act.exVolver = () => { abierto = null; WD.refrescar(); };
   WD.act.exTab = (el) => { tabEx = el.dataset.t; WD.refrescar(); };
   WD.act.exClave = (el) => {
@@ -377,11 +391,10 @@
   };
   WD.act.exExcel = async () => {
     const e = ex(abierto); const als = WD.alumnosActivos();
-    const rows = [['Nº', 'Alumno', ...Array.from({ length: e.n }, (_, i) => `P${i + 1}`), 'Aciertos', 'Puntaje /100', 'Nota']];
-    rows.push(['', 'CLAVE', ...e.clave.slice(0, e.n).map((x) => x || ''), '', '', '']);
-    als.forEach((a) => { const r = e.res[a.id]; rows.push([a.num || '', WD.nombreLista(a), ...(r ? r.resp.map((x) => x || '') : Array(e.n).fill('')), r ? aciertos(e, r.resp) : '', r ? puntaje(e, r.resp) : '', r ? Math.round(puntaje(e, r.resp)) / 10 : '']); });
-    WD.download(await WD.xlsxBlob([{ name: 'Resultados', rows, headerRows: 2, widths: [5, 32, ...Array(e.n).fill(5), 9, 11, 7] }]), `${e.nombre.replace(/[^\wáéíóúñ]+/gi, '_')}.xlsx`);
+    const rows = [['Nº', 'Alumno', e.escala === 100 ? 'Calificación /100' : 'Calificación', 'Nota (5 a 10)'], ...als.map((a) => { const n = notaDe(e, a.id); return [a.num || '', WD.nombreLista(a), n === null ? '' : mostrar(e, n), n === null ? '' : WD.round1(n)]; })];
+    WD.download(await WD.xlsxBlob([{ name: 'Calificaciones', rows, widths: [5, 34, 14, 12] }]), `${e.nombre.replace(/[^\wáéíóúñ]+/gi, '_')}.xlsx`);
   };
+
 
   /* ---------- vista ---------- */
   WD.views.examenes = {
@@ -390,35 +403,38 @@
       const als = WD.alumnosActivos(); const e = abierto && ex(abierto);
       if (!e) {
         const vt = WD.triVista(); const es = lista().filter((x) => !vt || (x.tipo === 'diagnostico' ? 1 : Number(x.tipo.slice(1))) === vt).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-        return `<div class="row"><div style="flex:1;min-width:0"><h1>Exámenes</h1><p class="muted">Imprime la hoja de respuestas, escanéala con la cámara y la calificación pasa sola a Evaluación › Examen.</p></div><button class="btn pri" data-act="exNuevo">${WD.icon('mas')} Nuevo examen</button></div>
+        return `<div class="row"><div style="flex:1;min-width:0"><h1>Exámenes</h1><p class="muted">Anota la calificación de cada alumno y pasa sola a Evaluación › Examen y al promedio del trimestre.</p></div><button class="btn pri" data-act="exNuevo">${WD.icon('mas')} Nuevo examen</button></div>
           ${WD.selectorTri()}
-          ${es.length ? `<div class="stack">${es.map((x) => { const n = Object.keys(x.res).length; const prom = n && claveLista(x) ? Math.round(Object.values(x.res).reduce((t, r) => t + puntaje(x, r.resp), 0) / n * 10) / 10 : null;
-            return `<button class="card row dg-ap" data-act="exAbrir" data-id="${x.id}"><span class="pill">${TIPOS[x.tipo]}</span><span style="flex:1;text-align:left"><b>${esc(x.nombre)}</b><span class="small muted"> · ${esc(WD.CAMPO_CORTO[x.campo] || x.campo)} · ${x.n} preguntas · ${esc(WD.fechaLarga(x.fecha))}</span></span>${claveLista(x) ? '' : '<span class="pill warn">Falta la clave</span>'}<span class="pill">${n} de ${als.length}</span>${prom !== null ? `<b>${prom}</b>` : ''}</button>`; }).join('')}</div>`
-            : `<div class="empty"><h3>${lista().length ? 'No hay exámenes en este periodo' : 'Aún no hay exámenes'}</h3><p class="small">Crea uno: te pregunto cuántas preguntas tiene, llenas la clave, imprimes las hojas y las escaneas. El diagnóstico aparece en el Trimestre 1.</p></div>`}`;
+          ${es.length ? `<div class="stack">${es.map((x) => { const ns = als.map((a) => notaDe(x, a.id)).filter((v) => v !== null); const prom = ns.length ? WD.round1(ns.reduce((t, v) => t + v, 0) / ns.length) : null;
+            return `<button class="card row dg-ap" data-act="exAbrir" data-id="${x.id}"><span class="pill">${TIPOS[x.tipo]}</span><span style="flex:1;text-align:left"><b>${esc(x.nombre)}</b><span class="small muted"> · ${esc(WD.CAMPO_CORTO[x.campo] || x.campo)} · ${esc(WD.fechaLarga(x.fecha))}</span></span><span class="pill ${ns.length === als.length && ns.length ? 'ok' : ''}">${ns.length} de ${als.length}</span>${prom !== null ? `<b>${prom}</b>` : ''}</button>`; }).join('')}</div>`
+            : `<div class="empty"><h3>${lista().length ? 'No hay exámenes en este periodo' : 'Aún no hay exámenes'}</h3><p class="small">Crea uno y escribe la calificación de cada alumno. El diagnóstico aparece en el Trimestre 1.</p></div>`}`;
       }
-      const tabs = [['clave', `Clave (${e.clave.filter(Boolean).length}/${e.n})`], ['resultados', `Resultados (${Object.keys(e.res).length})`], ['analisis', 'Análisis']];
-      let cuerpo;
-      if (tabEx === 'clave') {
-        cuerpo = `<div class="row"><span class="small muted" style="flex:1">Toca la respuesta correcta de cada pregunta · <b id="exk-n">${e.clave.filter(Boolean).length} de ${e.n}</b></span><button class="btn sm" data-act="exEscanear" data-clave="1">${WD.icon('camara')} Escanear clave</button><button class="btn sm" data-act="exPreguntas">Cambiar número de preguntas</button></div>
-          <div class="exk">${Array.from({ length: e.n }, (_, q) => `<div class="exk-f"><b>${q + 1}</b>${LET.slice(0, e.op).map((l) => `<button class="exb ${e.clave[q] === l ? 'on' : ''}" data-act="exClave" data-q="${q}" data-l="${l}">${l}</button>`).join('')}<span class="tiny muted">${Math.round(1000 / e.n) / 10} pts</span></div>`).join('')}</div>`;
-      } else if (tabEx === 'resultados') {
-        const hechos = als.filter((a) => e.res[a.id]); const ps = hechos.map((a) => puntaje(e, e.res[a.id].resp));
-        const est = ps.length ? { min: Math.min(...ps), max: Math.max(...ps), prom: Math.round(ps.reduce((t, x) => t + x, 0) / ps.length * 10) / 10 } : null;
-        cuerpo = `${est ? `<div class="grid g3"><div class="card"><div class="label">Promedio</div><div style="font-size:28px;font-weight:700">${est.prom}</div></div><div class="card"><div class="label">Más alta</div><div style="font-size:28px;font-weight:700">${est.max}</div></div><div class="card"><div class="label">Más baja</div><div style="font-size:28px;font-weight:700">${est.min}</div></div></div>` : ''}
-          <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Nº</th><th>Alumno</th><th class="c">Aciertos</th><th class="r">Puntaje</th><th class="r">Nota</th></tr></thead><tbody>${als.map((a) => { const r = e.res[a.id]; const p = r && puntaje(e, r.resp);
-            return `<tr><td class="c">${esc(a.num || '')}</td><td><button class="link" data-act="exRevisar" data-al="${a.id}">${esc(WD.nombreLista(a))}</button>${r?.editado ? ' <span class="tiny muted">corregida</span>' : ''}</td>${r ? `<td class="c">${aciertos(e, r.resp)}/${e.n}</td><td class="r"><b>${p}</b>/100</td><td class="r">${Math.round(p) / 10}</td>` : '<td colspan="3" class="small faint">Sin escanear</td>'}</tr>`; }).join('')}</tbody></table></div>
-          <p class="tiny muted">${e.campo && WD.CAMPOS.includes(e.campo) ? `Las notas se ven en Evaluación › ${e.tipo === 'diagnostico' ? 'Trimestre 1' : TIPOS[e.tipo]} › ${esc(WD.CAMPO_CORTO[e.campo])} › Examen${e.tipo === 'diagnostico' ? ' (el diagnóstico aparece con valor 0: se ve pero no cuenta; dale valor si quieres que cuente)' : ''}.` : ''} Toca un nombre para revisar o corregir su hoja.</p>`;
-      } else {
-        const rs = Object.values(e.res); const n = rs.length || 1;
-        cuerpo = rs.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Pregunta</th><th class="c">Correcta</th><th>% de aciertos</th>${LET.slice(0, e.op).map((l) => `<th class="c">${l}</th>`).join('')}<th class="c">Sin resp.</th></tr></thead><tbody>${Array.from({ length: e.n }, (_, q) => { const ok = rs.filter((r) => r.resp[q] === e.clave[q]).length; const pct = Math.round((ok / n) * 100);
-            return `<tr><td class="c"><b>${q + 1}</b></td><td class="c">${e.clave[q] || '—'}</td><td><div class="dg-bar" style="grid-template-columns:1fr 44px"><div><i class="${pct >= 70 ? 'ok' : pct >= 40 ? 'warn' : 'bad'}" style="width:${pct}%"></i></div><b class="small">${pct}%</b></div></td>${LET.slice(0, e.op).map((l) => `<td class="c small ${e.clave[q] === l ? '' : 'muted'}">${rs.filter((r) => r.resp[q] === l).length}</td>`).join('')}<td class="c small muted">${rs.filter((r) => !r.resp[q] || r.resp[q] === '*').length}</td></tr>`; }).join('')}</tbody></table></div><p class="tiny muted">Las preguntas en rojo son las que más se fallaron: buenas para repasar.</p>` : '<p class="small muted">Escanea hojas para ver el análisis por pregunta.</p>';
-      }
+      const ns = als.map((a) => notaDe(e, a.id)).filter((v) => v !== null);
+      const est = ns.length ? { prom: WD.round1(ns.reduce((t, x) => t + x, 0) / ns.length), max: Math.max(...ns), min: Math.min(...ns) } : null;
+      const sobre = e.escala === 100 ? 100 : 10;
       return `<div class="row"><button class="btn ghost" data-act="exVolver">${WD.icon('izq')} Exámenes</button><span style="flex:1"></span>
-          <button class="btn sm" data-act="exVerHoja">Ver hoja</button><button class="btn sm" data-act="exHojas">${WD.icon('imprimir')} Hojas con nombre</button><button class="btn sm" data-act="exHojas" data-b="1">${WD.icon('imprimir')} Hojas en blanco</button><button class="btn sm" data-act="exExcel">${WD.icon('descargar')} Excel</button><button class="btn pri" data-act="exEscanear">${WD.icon('camara')} Escanear hojas</button></div>
-        <div><h1 style="margin:0">${esc(e.nombre)}</h1><p class="muted" style="margin:4px 0 0">${TIPOS[e.tipo]} · ${esc(e.campo)} · ${e.n} preguntas · ${esc(WD.fechaLarga(e.fecha))}</p></div>
-        <div class="tabs">${tabs.map(([t, n]) => `<button class="${tabEx === t ? 'on' : ''}" data-act="exTab" data-t="${t}">${n}</button>`).join('')}</div>
-        ${cuerpo}
+          <button class="btn sm" data-act="exEditar">Editar datos</button><button class="btn sm" data-act="exExcel">${WD.icon('descargar')} Excel</button></div>
+        <div><h1 style="margin:0">${esc(e.nombre)}</h1><p class="muted" style="margin:4px 0 0">${TIPOS[e.tipo]} · ${esc(e.campo)} · ${esc(WD.fechaLarga(e.fecha))}</p></div>
+        ${est ? `<div class="grid g3"><div class="card"><div class="label">Promedio</div><div style="font-size:28px;font-weight:700">${est.prom}</div></div><div class="card"><div class="label">Más alta</div><div style="font-size:28px;font-weight:700">${WD.round1(est.max)}</div></div><div class="card"><div class="label">Más baja</div><div style="font-size:28px;font-weight:700">${WD.round1(est.min)}</div></div></div>` : ''}
+        <div class="row" style="gap:8px"><span class="small muted" style="flex:1">Escribe la calificación ${sobre === 100 ? 'sobre 100' : 'del 5 al 10'} y pasa con Enter al siguiente. <b id="ex-cnt">${ns.length} de ${als.length}</b> capturados.</span><button class="btn sm ghost" data-act="exEscala">Anotar ${sobre === 100 ? 'del 5 al 10' : 'sobre 100'}</button></div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Nº</th><th>Alumno</th><th class="c">Calificación${sobre === 100 ? ' (sobre 100)' : ''}</th><th class="r">Nota en Evaluación</th></tr></thead><tbody>${als.map((a, i) => { const n = notaDe(e, a.id);
+          return `<tr><td class="c">${esc(a.num || '')}</td><td>${esc(WD.nombreLista(a))}</td><td class="c"><input class="in ex-n" inputmode="decimal" data-al="${a.id}" data-i="${i}" value="${mostrar(e, n)}" style="width:96px;text-align:center;font-size:17px" aria-label="Calificación de ${esc(WD.nombreLista(a))}"></td><td class="r"><b id="ex-nt-${a.id}">${n === null ? '<span class="faint">—</span>' : WD.round1(n)}</b></td></tr>`; }).join('')}</tbody></table></div>
+        <p class="tiny muted">${e.campo && WD.CAMPOS.includes(e.campo) ? `La nota se ve en Evaluación › ${e.tipo === 'diagnostico' ? 'Trimestre 1' : TIPOS[e.tipo]} › ${esc(WD.CAMPO_CORTO[e.campo])} › Examen${e.tipo === 'diagnostico' ? ' (el diagnóstico aparece con valor 0: se ve pero no cuenta; dale valor si quieres que cuente)' : ''} y entra al promedio general.` : ''} Deja vacío a quien no lo presentó.</p>
         <div class="row"><span style="flex:1"></span><button class="btn ghost danger sm" data-act="exBorrar">Eliminar examen</button></div>`;
+    },
+    after(v) {
+      const e = abierto && ex(abierto); if (!e) return; const ins = [...v.querySelectorAll('.ex-n')];
+      ins.forEach((inp, i) => {
+        const fijar = () => {
+          const t = inp.value.trim().replace(',', '.'); e.notas = e.notas || {};
+          if (!t) { e.notas[inp.dataset.al] = null; delete e.res[inp.dataset.al]; }
+          else { let n = Number(t); if (!isFinite(n) || n < 0 || n > (e.escala === 100 ? 100 : 10)) { inp.style.borderColor = 'var(--bad)'; WD.toast(e.escala === 100 ? 'Escribe un número del 0 al 100.' : 'Escribe un número del 0 al 10.'); return; } if (e.escala === 100) n = n / 10; e.notas[inp.dataset.al] = Math.round(n * 100) / 100; }
+          inp.style.borderColor = ''; guardar(e); const n = notaDe(e, inp.dataset.al); const b = document.getElementById(`ex-nt-${inp.dataset.al}`); if (b) b.innerHTML = n === null ? '<span class="faint">—</span>' : WD.round1(n);
+          const c = document.getElementById('ex-cnt'); if (c) c.textContent = `${WD.alumnosActivos().filter((a) => notaDe(e, a.id) !== null).length} de ${WD.alumnosActivos().length}`;
+        };
+        inp.addEventListener('change', fijar);
+        inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); fijar(); const sig = ins[i + 1]; if (sig) { sig.focus(); sig.select(); } else inp.blur(); } });
+      });
     },
   };
   WD.exLeerHoja = leerHoja; WD.exHojaHTML = hojaHTML; // para pruebas
