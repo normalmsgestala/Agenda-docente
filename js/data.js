@@ -137,6 +137,10 @@
     if (typeof r === 'object') {
       const crit = act.criterios || [];
       if (!crit.length) return typeof r.nota === 'number' ? r.nota : null;
+      if (act.instrumento === 'caritas') { // 😟 6 · 😐 8 · 😀 10
+        const CAR = [0, 6, 8, 10]; const nv = crit.map((_, i) => (r.niveles ? r.niveles[i] : null)).filter((x) => x);
+        if (!nv.length) return null; return crit.reduce((s, _, i) => s + CAR[(r.niveles && r.niveles[i]) || 0], 0) / crit.length;
+      }
       if (act.instrumento === 'rubrica') {
         const niveles = crit.map((_, i) => r.niveles ? r.niveles[i] : null).filter((x) => x);
         if (!niveles.length) return null;

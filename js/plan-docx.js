@@ -12,7 +12,7 @@
   const filas = (tbl) => kids(tbl, 'tr').map((tr) => kids(tr, 'tc').map(textoCelda));
   const quitar = (s, etiqueta) => String(s || '').replace(new RegExp('^\\s*' + etiqueta + '\\s*:?\\s*', 'i'), '').trim();
   const campoDe = (s) => { const n = WD.norm(s); return WD.CAMPOS.find((c) => n.startsWith(WD.norm(c).slice(0, 6))) || null; };
-  const instrumentoDe = (s) => /r[uú]brica|escala/i.test(s) ? 'rubrica' : 'cotejo';
+  const instrumentoDe = (s) => (/carita/i.test(s) ? 'caritas' : /r[uú]brica|escala/i.test(s) ? 'rubrica' : 'cotejo');
 
   // PDA de la sesión: «C1 (P1, P2)» → textos del contenido y de cada PDA del proyecto
   function metaSesion(meta, ref) {

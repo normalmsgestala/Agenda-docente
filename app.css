@@ -181,6 +181,15 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
 .chk { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-size: 13px; }
 .chk.on { background: var(--ok); color: #fff; border-color: var(--ok); }
 .lvl { display: inline-flex; gap: 2px; }
+.ckb { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
+.ckb-c { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 7px; border: 2px solid var(--line-2); background: var(--surface); transition: background .12s, border-color .12s; }
+.ckb.on .ckb-c { background: var(--ok); border-color: var(--ok); color: #fff; }
+.ckb-n { font-size: 10px; color: var(--faint); line-height: 1; }
+.caras { display: inline-flex; gap: 4px; }
+.caras button { width: 38px; height: 38px; border-radius: 50%; border: 2px solid transparent; background: var(--surface-2); font-size: 22px; line-height: 1; cursor: pointer; filter: grayscale(1); opacity: .55; transition: transform .1s, opacity .1s; }
+.caras button:hover { opacity: .85; }
+.caras button.on { filter: none; opacity: 1; border-color: var(--accent); background: var(--surface); transform: scale(1.08); }
+.ne-on { background: var(--bad) !important; color: #fff !important; }
 .lvl button { width: 24px; height: 26px; border: 1px solid var(--line-2); background: var(--surface); border-radius: 5px; cursor: pointer; font-size: 12px; }
 .lvl button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .nota { font-weight: 600; font-variant-numeric: tabular-nums; }

@@ -4,7 +4,10 @@
   const { esc } = WD;
   let tri = null, tab = 'calificar', alumnoSel = null, campoAct = 'todos';
   const triIdx = () => WD.state.trimestres.findIndex((t) => t.n === tri);
-  const INST = { nota: 'Calificación directa', cotejo: 'Lista de cotejo', rubrica: 'Rúbrica' };
+  const INST = { nota: 'Calificación directa', cotejo: 'Lista de cotejo (casillas)', caritas: 'Caritas (lo logró · en proceso · no lo logró)', rubrica: 'Rúbrica con caritas (4 niveles)' };
+  const CARA3 = ['', '😟', '😐', '😀'], CARA3_T = ['', 'No lo logró', 'En proceso', 'Lo logró'];
+  const CARA4 = ['', '😟', '😐', '🙂', '🤩'];
+  const CHK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const NIVEL = ['', 'Requiere apoyo', 'En proceso', 'Logrado', 'Destacado'];
 
   WD.act.evTri = (el) => { tri = Number(el.dataset.n); WD.refrescar(); };
@@ -30,9 +33,12 @@
     if (act.instrumento === 'nota' || !crit.length) {
       ctl = `<div class="score">${[5, 6, 7, 8, 9, 10].map((v) => `<button class="${n === v ? 'on' : ''}" data-act="calNota" data-a="${act.id}" data-al="${a.id}" data-v="${v}">${v}</button>`).join('')}<button class="${n === 0 ? 'on' : ''}" title="No entregó (cuenta como 0)" data-act="calNota" data-a="${act.id}" data-al="${a.id}" data-v="0">NE</button></div>`;
     } else if (act.instrumento === 'cotejo') {
-      ctl = `<div class="row" style="gap:4px">${crit.map((c, i) => `<button class="chk ${r && r.checks && r.checks[i] ? 'on' : ''}" title="${esc(c)}" data-act="calCheck" data-a="${act.id}" data-al="${a.id}" data-i="${i}">${i + 1}</button>`).join('')}<button class="btn sm ghost" title="No entregó (cuenta como 0)" data-act="calNota" data-a="${act.id}" data-al="${a.id}" data-v="0">${n === 0 && typeof r === 'number' ? '<b>NE</b>' : 'NE'}</button></div>`;
+      // casillas de checklist: una por criterio
+      ctl = `<div class="row" style="gap:8px">${crit.map((c, i) => { const on = r && r.checks && r.checks[i]; return `<button class="ckb ${on ? 'on' : ''}" title="${esc(c)}" aria-label="${esc(c)}" aria-pressed="${on ? 'true' : 'false'}" data-act="calCheck" data-a="${act.id}" data-al="${a.id}" data-i="${i}"><span class="ckb-c">${on ? CHK : ''}</span>${crit.length > 1 ? `<span class="ckb-n">${i + 1}</span>` : ''}</button>`; }).join('')}<button class="btn sm ghost ${n === 0 && typeof r === 'number' ? 'ne-on' : ''}" title="No entregó (cuenta como 0)" data-act="calNota" data-a="${act.id}" data-al="${a.id}" data-v="0">NE</button></div>`;
     } else {
-      ctl = `<div class="stack" style="gap:4px">${crit.map((c, i) => `<div class="row" style="gap:6px;flex-wrap:nowrap"><span class="tiny faint num" style="width:14px">${i + 1}</span><div class="lvl">${[1, 2, 3, 4].map((l) => `<button class="${r && r.niveles && r.niveles[i] === l ? 'on' : ''}" title="${NIVEL[l]}" data-act="calNivel" data-a="${act.id}" data-al="${a.id}" data-i="${i}" data-l="${l}">${l}</button>`).join('')}</div></div>`).join('')}</div>`;
+      // caritas por criterio: 3 (caritas) o 4 niveles (rúbrica)
+      const tres = act.instrumento === 'caritas'; const caras = tres ? CARA3 : CARA4; const tit = tres ? CARA3_T : NIVEL; const lv = tres ? [1, 2, 3] : [1, 2, 3, 4];
+      ctl = `<div class="stack" style="gap:6px">${crit.map((c, i) => `<div class="row" style="gap:6px;flex-wrap:nowrap">${crit.length > 1 ? `<span class="tiny faint num" style="width:14px">${i + 1}</span>` : ''}<div class="caras">${lv.map((l) => `<button class="${r && r.niveles && r.niveles[i] === l ? 'on' : ''}" title="${tit[l]}" aria-label="${esc(c)}: ${tit[l]}" data-act="calNivel" data-a="${act.id}" data-al="${a.id}" data-i="${i}" data-l="${l}">${caras[l]}</button>`).join('')}</div></div>`).join('')}${''}</div><button class="btn sm ghost ${n === 0 && typeof r === 'number' ? 'ne-on' : ''}" style="margin-top:4px" title="No entregó (cuenta como 0)" data-act="calNota" data-a="${act.id}" data-al="${a.id}" data-v="0">NE</button>`;
     }
     return `<tr><td class="r faint">${esc(a.num || '')}</td><td style="white-space:normal;min-width:150px">${esc(WD.nombreLista(a))}${r && r.ia ? `<div><button class="pill warn" style="cursor:pointer" data-act="confirmarIA" data-a="${act.id}" data-al="${a.id}" title="${esc(r.comentario || '')}">Propuesta IA · confirmar</button></div>` : ''}</td>
       <td>${ctl}</td>
@@ -54,9 +60,9 @@
       </div>
       <p class="tiny muted">Si dejas “Cuánto vale” vacío, el valor se reparte solo para que con todo bien hecho el alumno saque 10. Lo que aún no calificas no baja el promedio; usa NE si no lo entregó.</p>
       ${act.instrumento !== 'nota' ? `<label class="field"><span>Criterios (uno por renglón)</span><textarea class="in" id="act-crit" style="min-height:80px">${esc((act.criterios || []).join('\n'))}</textarea></label>
-        ${act.instrumento === 'rubrica' ? `<p class="tiny muted">Niveles: 1 Requiere apoyo · 2 En proceso · 3 Logrado · 4 Destacado.</p>` : ''}` : ''}
+` : ''}
       ${contextoHTML(act)}
-      ${als.length ? `<div class="row" style="gap:6px"><span class="small muted" style="flex:1">${als.filter((a) => WD.califActividad(act, a.id) !== null).length} de ${als.length} calificados</span><button class="btn sm" data-act="calTodos" data-a="${act.id}">${act.instrumento === 'nota' || !(act.criterios || []).length ? 'A los que faltan: 10' : act.instrumento === 'cotejo' ? 'A los que faltan: cumple todo' : 'A los que faltan: Logrado (3)'}</button><button class="btn sm" data-act="calNE" data-a="${act.id}">A los que faltan: NE</button></div>
+      ${als.length ? `<div class="row" style="gap:6px"><span class="small muted" style="flex:1">${als.filter((a) => WD.califActividad(act, a.id) !== null).length} de ${als.length} calificados</span><button class="btn sm" data-act="calTodos" data-a="${act.id}">${act.instrumento === 'nota' || !(act.criterios || []).length ? 'A los que faltan: 10' : act.instrumento === 'cotejo' ? 'A los que faltan: ✓ todo' : act.instrumento === 'caritas' ? 'A los que faltan: 😀' : 'A los que faltan: 🙂 Logrado'}</button><button class="btn sm" data-act="calNE" data-a="${act.id}">A los que faltan: NE</button></div>
         <p class="tiny muted" style="margin:-6px 0 0">Marca primero a todos y luego corrige solo a los que no. Los que ya calificaste no cambian.</p>` : ''}
       ${als.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">N°</th><th>Alumno</th><th>${INST[act.instrumento] || ''}</th><th class="r">Nota</th></tr></thead><tbody>${als.map((a) => filaAlumno(act, a, fotos)).join('')}</tbody></table></div>` : '<div class="empty small">Carga a tus alumnos en Mi grupo para evaluar.</div>'}
       <div class="row"><span style="flex:1"></span><button class="btn danger" data-act="borrarActividad" data-id="${act.id}">Eliminar actividad</button></div>`,
@@ -71,6 +77,9 @@
         }));
       }, `${esc(WD.CAMPO_CORTO[act.campo])} · ${esc(WD.RUBROS.find((r) => r.id === act.rubro).nombre)} · Trimestre ${act.trimestre}`);
   };
+  const leyenda = (act) => act.instrumento === 'rubrica' ? '<p class="tiny muted" style="margin:0">😟 Requiere apoyo · 😐 En proceso · 🙂 Logrado · 🤩 Destacado</p>'
+    : act.instrumento === 'caritas' ? '<p class="tiny muted" style="margin:0">😟 No lo logró (6) · 😐 En proceso (8) · 😀 Lo logró (10)</p>'
+    : act.instrumento === 'cotejo' ? '<p class="tiny muted" style="margin:0">Marca la casilla de cada criterio que cumple. NE = no entregó.</p>' : '';
   // Lo que se evalúa, a la vista: criterios con su texto y lo que dice la planeación
   const sesionDe = (act) => act.sesionId && WD.state.planeaciones.flatMap((p) => p.sesiones).find((x) => x.id === act.sesionId);
   WD.sesionDeActividad = sesionDe;
@@ -80,7 +89,7 @@
     return `<div class="card flat stack" style="background:var(--surface-2);border:0;gap:6px">
       <div class="row"><b style="flex:1">Qué se evalúa</b>${act.instrumento !== 'nota' ? `<span class="pill">${INST[act.instrumento]}</span>` : ''}</div>
       ${crit.length ? `<ol class="small" style="margin:0;padding-left:20px">${crit.map((c) => `<li>${esc(c)}</li>`).join('')}</ol>` : ''}
-      ${act.instrumento === 'rubrica' && crit.length ? '<p class="tiny muted" style="margin:0">Niveles: 1 Requiere apoyo · 2 En proceso · 3 Logrado · 4 Destacado.</p>' : ''}
+      ${crit.length ? leyenda(act) : ''}
       ${s ? `<details><summary class="small muted" style="cursor:pointer">De la planeación: ${esc(s.pda || '')} ${esc(WD.fechaLarga(s.fecha))}</summary><div class="small stack" style="gap:4px;margin-top:6px">${(s.pdaTexto || []).map((x) => `<div>${esc(x)}</div>`).join('')}${s.evidencias ? `<div><b>Evaluación:</b> ${esc(s.evidencias)}</div>` : ''}${s.cierre ? `<div><b>Cierre:</b> ${esc(s.cierre)}</div>` : ''}</div></details>` : ''}
     </div>`;
   }
