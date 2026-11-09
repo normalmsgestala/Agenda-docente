@@ -28,6 +28,7 @@
     documento: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8',
     atencion: 'M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z',
     agenda: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6',
+    conducta: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 14.5s1.3 1.8 3.5 1.8 3.5-1.8 3.5-1.8M9 9.5h.01M15 9.5h.01',
     padres: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0M15 4h6M15 8h6M17 12h4',
     listas: 'M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2',
     examenes: 'M7 3h10v18H7zM10 7h4M9.5 11a1 1 0 1 0 0 .01M9.5 15a1 1 0 1 0 0 .01M12 11h3M12 15h3',
@@ -51,7 +52,7 @@
   WD.icon = (n, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n] || P.pronto}"/></svg>`;
 
   const NAV = [
-    { id: 'inicio', t: 'Inicio' }, { id: 'grupo', t: 'Mi grupo' }, { id: 'atencion', t: 'Atención diferenciada' }, { id: 'asistencia', t: 'Asistencia' },
+    { id: 'inicio', t: 'Inicio' }, { id: 'grupo', t: 'Mi grupo' }, { id: 'atencion', t: 'Atención diferenciada' }, { id: 'asistencia', t: 'Asistencia' }, { id: 'conducta', t: 'Conducta' },
     { id: 'evaluacion', t: 'Evaluación' }, { id: 'padres', t: 'Actividades para padres' }, { id: 'examenes', t: 'Exámenes' }, { id: 'listas', t: 'Listas y notas' }, { id: 'agenda', t: 'Para la agenda' }, { id: 'planeacion', t: 'Planeación' }, { id: 'horario', t: 'Horario' },
     { id: 'incidencias', t: 'Incidencias' }, { id: 'calendario', t: 'Calendario y CTE' },
     { id: 'juntas', t: 'Juntas con padres' },
@@ -300,6 +301,7 @@
     { k: 'temporizador reloj tiempo ruido semaforo silencio azar alumno equipos proyector', t: 'Herramientas de aula', to: 'herramientas' },
     { k: 'agenda imprimir pegar recortar media carta asistencia mensual registro evaluacion directorio calendario indice', t: 'Para la agenda', to: 'agenda' },
     { k: 'atencion diferenciada perfil del grupo rezago nee socioemocional estrategias evidencias estilos de aprendizaje', t: 'Atención diferenciada', to: 'atencion' },
+    { k: 'conducta comportamiento disciplina rubrica palomita dia portarse', t: 'Conducta', to: 'conducta' },
     { k: 'padres familias pendientes faltan actividades entregar pdf debe tareas', t: 'Actividades para padres', to: 'padres' },
     { k: 'listas notas checklist cotejo trajo trabajo tarea material quien falta', t: 'Listas y notas', to: 'listas' },
     { k: 'examenes examen calificacion calificar anotar diagnostico trimestre', t: 'Exámenes', to: 'examenes' },

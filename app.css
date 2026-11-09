@@ -184,6 +184,7 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; font-vari
 .ckb { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
 .ckb-c { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 7px; border: 2px solid var(--line-2); background: var(--surface); transition: background .12s, border-color .12s; }
 .ckb.on .ckb-c { background: var(--ok); border-color: var(--ok); color: #fff; }
+.ckb-x .ckb-c { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); border-color: var(--bad); color: var(--bad); font-weight: 700; cursor: not-allowed; }
 .ckb-n { font-size: 10px; color: var(--faint); line-height: 1; }
 .caras { display: inline-flex; gap: 4px; }
 .caras button { width: 38px; height: 38px; border-radius: 50%; border: 2px solid transparent; background: var(--surface-2); font-size: 22px; line-height: 1; cursor: pointer; filter: grayscale(1); opacity: .55; transition: transform .1s, opacity .1s; }

@@ -48,6 +48,7 @@
       ],
       actividades: [],
       incidencias: [],
+      conducta: { criterios: [], dias: {} },
       calendario: { preset: '', eventos: [], valores: {} },
       juntas: [],
       diagnosticos: [],
