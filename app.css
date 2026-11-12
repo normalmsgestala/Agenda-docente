@@ -480,3 +480,10 @@ body.expo-on .pet { display: none; }
   .pet-btn .lb { display: none; } .pet-btn { padding: 5px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* aviso pendiente de la mascota */
+.pet-btn.aviso { position: relative; }
+.pet-btn.aviso::after { content: ''; position: absolute; top: 6px; left: 44px; width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 2px solid var(--surface); }
+/* en celular, un botón con texto largo se parte en dos renglones en lugar de salirse de la pantalla */
+@media (max-width: 520px) { .btn { max-width: 100%; white-space: normal; text-align: center; } }
+.aviso-version { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--bg); padding: 10px 12px 10px 16px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: 14px; max-width: calc(100vw - 32px); }

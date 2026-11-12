@@ -59,7 +59,7 @@
     { id: 'herramientas', t: 'Herramientas de aula' },
     { id: 'tombola', t: 'Tómbola' },
     { id: 'idai', t: 'IDAI / ICE' },
-    { id: 'banco', t: 'Banco Estala' },
+    { id: 'banco', t: 'Banco del grupo' },
     { id: 'control', t: 'Control administrativo' },
     { id: 'comisiones', t: 'Comisiones y cumpleaños' },
     { id: 'familias', t: 'Comunicación con familias' },
@@ -89,7 +89,7 @@
       const id = dentro && WD.state.banco && Object.keys(WD.state.banco.cuentas || {}).find((k) => WD.state.banco.cuentas[k].num === qr[1].toUpperCase());
       if (id) { history.replaceState(null, '', '#banco'); WD.render(); WD.act.bCuenta && WD.act.bCuenta({ dataset: { al: id } }); return; }
       if (!WD.vistaQR) { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center">
-        <div class="label">Banco Estala</div><div style="font-family:monospace;font-size:28px;letter-spacing:.1em">${esc(qr[1].toUpperCase())}</div>
+        <div class="label">Banco del grupo</div><div style="font-family:monospace;font-size:28px;letter-spacing:.1em">${esc(qr[1].toUpperCase())}</div>
         <p style="margin:0">Esta es tu tarjeta de cuenta. Para ver tu saldo, muéstrala a la cámara en la <b>Consulta de saldo</b> del salón.</p>
         <p class="small muted" style="margin:0">Tus datos se guardan solo en la cuenta de tu maestro.</p>
         <button class="btn" data-act="qrMaestro">Soy el maestro, entrar</button></div></div>`; return; }
@@ -108,12 +108,12 @@
     }
     const id = WD.ruta(); const v = WD.views[id];
     const s = WD.google.estado;
-    const syncTxt = s.modo === 'google' ? ({ guardado: 'Guardado en Drive', guardando: 'Guardando en Drive…', pendiente: 'Se guardará al volver internet', 'sin-conexion': 'Conectando…' }[s.sync] || '') : 'Guardado en este dispositivo';
+    const syncTxt = WD.textoSync();
     root().innerHTML = `
     <div class="app">
       <aside class="side" id="side" aria-label="Menú">
         <div class="brand"><div class="t">Agenda Maestro</div><div class="n">${esc(WD.state.docente.nombre)}</div></div>
-        <nav class="nav">${NAV.map((n) => `<a href="#${n.id}" class="${id === n.id ? 'on' : ''}">${WD.icon(n.id)}${n.t}</a>`).join('')}
+        <nav class="nav">${NAV.map((n) => `<a href="#${n.id}" class="${id === n.id ? 'on' : ''}">${WD.icon(n.id)}${n.id === 'banco' ? esc(WD.state.banco?.ajustes?.nombre || n.t) : n.t}</a>`).join('')}
           <div class="nav-sec">Configuración</div>
           ${NAV2.map((n) => `<a href="#${n.id}" class="${id === n.id ? 'on' : ''}">${WD.icon(n.id)}${n.t}</a>`).join('')}
           ${PRONTO.length ? '<div class="nav-sec">Próximamente</div>' : ''}
@@ -135,6 +135,9 @@
     ${WD.petHTML()}`;
     if (v.after) v.after(document.getElementById('view'));
   };
+  WD.textoSync = () => { const s = WD.google.estado; return s.modo === 'google' ? ({ guardado: 'Guardado en Drive', guardando: 'Guardando en Drive…', pendiente: 'Se guardará al volver internet', 'sin-conexion': 'Conectando…' }[s.sync] || '') : 'Guardado en este dispositivo'; };
+  // Solo cambia el letrero de guardado (sin volver a dibujar la página: no se pierde lo que estás escribiendo)
+  WD.pintarSync = () => { const el = document.querySelector('.side-foot .sync'); if (!el) return false; const s = WD.google.estado; el.className = `sync ${s.modo === 'google' ? s.sync : ''}`; el.innerHTML = `<i></i>${esc(WD.textoSync())}`; el.title = s.error || ''; return true; };
   WD.refrescar = () => { const y = window.scrollY; WD.render(); window.scrollTo(0, y); };
 
   /* ---------- inicio de sesión con Google ---------- */
@@ -167,9 +170,10 @@
       <div><div class="k">Agenda Maestro</div><h1>Web Docente</h1></div>
       <p class="muted">Tu agenda, tu grupo, tu evaluación y tus formatos en un solo lugar. Todo se guarda en tu cuenta.</p>
       ${WD.google.configurado() ? `<button type="button" class="btn pri" data-act="entrarGoogle" style="justify-content:center">Entrar con Google</button><div class="row"><span class="sep" style="flex:1"></span><span class="tiny faint">o empieza solo en este dispositivo</span><span class="sep" style="flex:1"></span></div>` : ''}
-      <label class="field"><span>¿Cómo te llamas?</span><input class="in" id="w-nombre" name="nombre" required placeholder="Ej. Carlos Ismael Estala Coronado" autocomplete="name"></label>
+      <label class="field"><span>¿Cómo te llamas?</span><input class="in" id="w-nombre" name="nombre" required placeholder="Ej. María Fernanda López García" autocomplete="name"></label>
       <button class="btn ${WD.google.configurado() ? '' : 'pri'}" style="justify-content:center">Entrar</button>
       ${WD.google.configurado() ? '' : `<p class="tiny faint">Por ahora se guarda en este dispositivo. Cuando se active Google, todo pasa a tu Drive.</p>`}
+      <p class="tiny faint" style="text-align:center;margin:0">Al entrar aceptas el <a href="privacidad.html" target="_blank" rel="noopener">aviso de privacidad y condiciones de uso</a>.</p>
     </form></div>`;
 
   /* ---------- delegación de eventos ---------- */
@@ -270,19 +274,23 @@
       <button class="pet-btn" data-act="petToggle" aria-expanded="${petAbierto}"><span class="av">${m.svg}</span><span class="lb"><b>${esc(m.nombre)}</b><span>Pregúntame</span></span></button>
     </div>`;
   };
-  WD.petAbrir = (saludo) => {
+  let petAuto = null;
+  WD.petAbrir = (saludo, sinFoco) => {
+    clearTimeout(petAuto); document.querySelector('.pet-btn')?.classList.remove('aviso');
     petAbierto = true; const p = document.getElementById('pet-panel'); if (!p) return;
     p.hidden = false; document.querySelector('.pet-btn')?.setAttribute('aria-expanded', 'true');
     const b = document.getElementById('pet-bubble'); if (b) b.textContent = saludo === true ? `¡Hola, ${WD.state.docente.nombre.split(' ')[0]}! Soy ${WD.mascota().nombre}. Si no sabes algo, aquí abajo me preguntas.` : WD.animoAleatorio();
-    setTimeout(() => document.getElementById('pet-q')?.focus(), 50);
+    if (!sinFoco) setTimeout(() => document.getElementById('pet-q')?.focus(), 50); // en avisos no se abre el teclado del iPad
   };
   // La mascota avisa algo (por ejemplo, que terminó de leer la planeación)
   WD.petDecir = (texto, ir) => {
     petHist.push({ de: 'el', texto, ir: ir || null });
     const body = document.getElementById('pet-body');
     if (body) { body.insertAdjacentHTML('beforeend', `<div class="msg el">${esc(texto)}</div>${ir ? `<button class="hit" data-act="ir" data-to="${ir}">Ir a ${esc(WD.views[ir]?.titulo || ir)} <span class="k">abrir</span></button>` : ''}`); }
-    WD.petAbrir(); const b = document.getElementById('pet-bubble'); if (b) b.textContent = 'Te dejo un aviso aquí abajo.';
+    WD.petAbrir(false, true); const b = document.getElementById('pet-bubble'); if (b) b.textContent = 'Te dejo un aviso aquí abajo.';
     const pb = document.getElementById('pet-body'); if (pb) pb.scrollTop = pb.scrollHeight;
+    // El aviso se cierra solo a los 12 s si no lo estás usando (queda un puntito en la mascota)
+    clearTimeout(petAuto); petAuto = setTimeout(() => { const pn = document.getElementById('pet-panel'); if (!pn || pn.contains(document.activeElement) || pn.matches(':hover') || document.getElementById('pet-q')?.value) return; WD.petCerrar(); document.querySelector('.pet-btn')?.classList.add('aviso'); }, 12000);
   };
   WD.petCerrar = () => { petAbierto = false; const p = document.getElementById('pet-panel'); if (p) p.hidden = true; document.querySelector('.pet-btn')?.setAttribute('aria-expanded', 'false'); };
   WD.act.petToggle = () => (petAbierto ? WD.petCerrar() : WD.petAbrir());
@@ -308,7 +316,7 @@
     { k: 'familias padres tutores mensajes correo whatsapp avisos citatorio recordatorio comunicacion', t: 'Comunicación con familias', to: 'familias' },
     { k: 'comisiones cumpleanos cumpleaños jefe de grupo responsables rotar felicitar', t: 'Comisiones y cumpleaños', to: 'comisiones' },
     { k: 'control administrativo entregas mensuales direccion supervision visitas vo bo programa analitico udei', t: 'Control administrativo', to: 'control' },
-    { k: 'banco estala dinero billetes sueldo cuentas prestamo servicios recibos economia', t: 'Banco Estala', to: 'banco' },
+    { k: 'banco estala dinero billetes sueldo cuentas prestamo servicios recibos economia', t: 'Banco del grupo', to: 'banco' },
     { k: 'idai ice diagnostico alfabetizacion lectura escritura nivel silabico presilabico alfabetico convenciones dictado', t: 'IDAI / ICE', to: 'idai' },
     { k: 'tombola loteria juego numeros letras calculo mental', t: 'Tómbola', to: 'tombola' },
     { k: 'calendario cte consejo tecnico vacaciones sin clases fechas registro calificaciones', t: 'Calendario y CTE', to: 'calendario' },

@@ -15,7 +15,7 @@
   function B() {
     const s = WD.state; if (!s.banco) s.banco = {};
     const b = s.banco;
-    b.ajustes = Object.assign({ nombre: 'Banco Estala', moneda: 'Estala Billetes', simbolo: 'EB$', saldoInicial: 50, prestamoMax: 20 }, b.ajustes || {});
+    b.ajustes = Object.assign({ nombre: 'Banco del grupo', moneda: 'Billetes del grupo', simbolo: 'B$', saldoInicial: 50, prestamoMax: 20 }, b.ajustes || {});
     b.cuentas = b.cuentas || {}; b.movs = b.movs || []; b.recibos = b.recibos || []; b.prestamos = b.prestamos || [];
     if (!b.servicios) b.servicios = SERVICIOS.map(([nombre, desc, costo, cat, interes, auto]) => ({ id: WD.uid(), nombre, desc, costo, cat, interes, auto }));
     return b;
@@ -413,7 +413,7 @@
 
   /* ---------- vista ---------- */
   WD.views.banco = {
-    titulo: 'Banco Estala',
+    get titulo() { return WD.state.banco?.ajustes?.nombre || 'Banco del grupo'; },
     render() {
       abrirCuentas(); const b = B(); const als = WD.alumnosActivos();
       if ((tab === 'proyector' || tab === 'ventanilla') && !document.body.classList.contains('proyector')) { tab = 'cuentas'; detenerCamara(); }

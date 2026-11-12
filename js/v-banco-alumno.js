@@ -22,7 +22,7 @@
     fileId = id;
     root().innerHTML = '<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center"><span class="spinner"></span><p class="muted" style="margin:0">Buscando tu cuenta…</p></div></div>';
     const key = WD.CONFIG.googleApiKey;
-    const error = (t) => { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center"><div class="label">Banco Estala</div><p style="margin:0">${esc(t)}</p><button class="btn sm" onclick="location.reload()">Intentar de nuevo</button></div></div>`; };
+    const error = (t) => { root().innerHTML = `<div class="welcome"><div class="box card stack" style="text-align:center;justify-items:center"><div class="label">Banco del grupo</div><p style="margin:0">${esc(t)}</p><button class="btn sm" onclick="location.reload()">Intentar de nuevo</button></div></div>`; };
     if (!key) return error('La consulta desde el celular aún no está lista. Pídele a tu maestro que la active.');
     try {
       const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${encodeURIComponent(key)}&t=${Date.now()}`, { cache: 'no-store' });

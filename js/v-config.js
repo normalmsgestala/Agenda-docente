@@ -71,11 +71,12 @@
       <div class="card stack"><h2>Inteligencia artificial (tu Gemini)</h2>
         ${WD.ai.tieneClave() ? `<p class="small"><span class="pill ok">Conectado</span> &nbsp;Modelo: <span class="num">${esc(a.geminiModel || 'automático')}</span></p><div class="row"><button class="btn sm" data-act="conectarGemini">Cambiar clave</button><button class="btn sm ghost danger" data-act="quitarGemini">Desconectar</button></div>`
           : `<p class="small muted">Lee tus planeaciones, propone evaluaciones con foto, redacta reportes y responde en la mascota.</p><button class="btn pri" data-act="conectarGemini" style="justify-self:start">Conectar mi Gemini</button>`}
-        <p class="tiny muted">Los nombres de tus alumnos nunca se envían a Gemini: la app los cambia por “Alumno 1, 2…” y los vuelve a poner al recibir la respuesta.</p></div>
+        <p class="tiny muted">En lo que escribes y en los Word, la app cambia los nombres de tus alumnos por “Alumno 1, 2…” antes de enviarlos a Gemini y los vuelve a poner al recibir la respuesta. Los PDF y las fotos se envían como están: si traen nombres, Gemini los ve.</p></div>
       <div class="card stack"><h2>Respaldo y fin de ciclo</h2>
         <p class="small muted">Descarga todo en un archivo comprimido (.zip) con tus datos, un Excel de evaluación y asistencia, y las fotos. Después puedes borrar todo para empezar el nuevo ciclo.</p>
         <div class="row"><button class="btn" data-act="respaldo">${WD.icon('descargar')} 1. Descargar todo (.zip)</button><button class="btn danger" data-act="borrarTodo" ${respaldoHecho ? '' : 'disabled title="Primero descarga el respaldo"'}>2. Borrar todo</button><span style="flex:1"></span><button class="btn ghost sm" data-act="restaurar">Restaurar desde respaldo</button></div>
-        <input type="file" id="in-rest" accept=".zip,.json" hidden></div>`;
+        <input type="file" id="in-rest" accept=".zip,.json" hidden></div>
+      <p class="tiny muted" style="text-align:center">Web Docente · versión ${esc(WD.VERSION || '')} · <a href="privacidad.html" target="_blank" rel="noopener">Aviso de privacidad y condiciones de uso</a></p>`;
     },
     after(v) {
       v.querySelector('#in-rest').addEventListener('change', async (ev) => {

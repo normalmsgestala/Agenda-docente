@@ -88,7 +88,7 @@
     const k = K();
     WD.abrirDrawer('Comisiones del grupo', `${k.lista.map((c, i) => `<div class="row"><input class="in" style="flex:1" data-bind="comisiones.lista.${i}.nombre" value="${esc(c.nombre)}"><label class="row small" style="gap:6px"><span class="muted">Sueldo</span><input class="in" type="number" min="0" style="width:80px" data-bind="comisiones.lista.${i}.sueldo" value="${c.sueldo ?? 0}"></label><button class="btn sm ghost danger" data-act="kQuitar" data-id="${c.id}" aria-label="Quitar">×</button></div>`).join('')}
       <button class="btn" data-act="kAgregar" style="justify-self:start">${WD.icon('mas')} Agregar comisión</button>
-      <label class="row" style="gap:10px"><input type="checkbox" data-bind="comisiones.banco" ${k.banco ? 'checked' : ''}><span>Poner la comisión como puesto en Banco Estala y pagarle ese sueldo semanal</span></label>`);
+      <label class="row" style="gap:10px"><input type="checkbox" data-bind="comisiones.banco" ${k.banco ? 'checked' : ''}><span>Poner la comisión como puesto en el banco del grupo y pagarle ese sueldo semanal</span></label>`);
   };
   WD.act.kAgregar = () => { K().lista.push({ id: WD.uid(), nombre: 'Nueva comisión', sueldo: 10 }); WD.save(); WD.act.kEditar(); WD.refrescar(); };
   WD.act.kQuitar = (el) => { const k = K(); k.lista = k.lista.filter((c) => c.id !== el.dataset.id); Object.values(k.meses).forEach((m) => delete m[el.dataset.id]); sincronizarBanco(); WD.save(); WD.act.kEditar(); WD.refrescar(); };
@@ -125,7 +125,7 @@
           <div class="k-grid">${k.lista.map((c) => `<button class="card k-c" data-act="kAsignar" data-id="${c.id}"><div class="row"><b style="flex:1;text-align:left">${esc(c.nombre)}</b>${k.banco && WD.state.banco && c.sueldo ? `<span class="tiny muted">${esc(WD.state.banco.ajustes?.simbolo || 'EB$')} ${c.sueldo}</span>` : ''}</div>
             <div class="k-m">${(a[c.id] || []).map((id) => alumno(id)).filter(Boolean).map((x) => `<span class="pill">${esc(corto(x))}</span>`).join('') || '<span class="small faint">Toca para asignar</span>'}</div></button>`).join('')}</div>
           ${sin.length ? `<p class="small muted">Sin comisión este mes (${sin.length}): ${sin.map((x) => esc(corto(x))).join(', ')}</p>` : '<p class="small muted">Todo el grupo tiene comisión este mes.</p>'}
-          ${k.banco && WD.state.banco ? '<p class="tiny muted">Las comisiones del mes actual se ponen como puesto en Banco Estala y «Pagar sueldos» les paga su sueldo.</p>' : ''}`;
+          ${k.banco && WD.state.banco ? '<p class="tiny muted">Las comisiones del mes actual se ponen como puesto en el banco del grupo y «Pagar sueldos» les paga su sueldo.</p>' : ''}`;
       } else {
         const orden = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7]; const mesHoy = new Date().getMonth();
         const sinFecha = als.filter((x) => !nacio(x));
